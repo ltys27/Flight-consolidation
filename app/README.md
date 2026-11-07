@@ -14,10 +14,10 @@ Logging follows the sector note: four headings, one line per entry.
 - **Technique improvement**, **New knowledge**, **Station specific**: free lines.
   Station lines are tied to that flight's destination.
 
-**Review** before a flight lets you pick what to go through: the missed list in flight
-order, all technique notes, all knowledge notes, or everything you have noted about
-that station. **Library** pulls any category out across all sectors with search, and
-station notes by airport. Each sector page renders the note with the same four headings
+**Review** before a flight shows the missed list in flight order, then everything you
+have noted about that station. Technique and knowledge are reference, not rehearsal:
+the **Library** tab pulls any category out across all sectors with search, and station
+notes by airport. Each sector page renders the note with the same four headings
 and exports it as markdown.
 
 An item leaves the missed list after N clean flights in a row (N in Data, default 2)

@@ -243,23 +243,17 @@ function vPlan(editId) {
 }
 
 // ============================================================ review (before the flight)
-function vPrepare(id, cat = 'missed') {
+function vPrepare(id) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
   const list = listFor(sec); const focus = new Set(list.slice(0, 3).map(x => x.item.id));
-  const chips = Object.keys(CATS).map(c => `<a class="chip ${c === cat ? 'on' : ''}" href="#/prepare/${sec.id}/${c}">${c === 'station' ? esc(dest(sec)) : ({ missed: 'Missed', technique: 'Technique', knowledge: 'Knowledge' })[c]}</a>`).join('');
-  let body;
-  if (cat === 'missed') {
-    body = groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>';
-  } else {
-    const entries = libraryEntries(cat, cat === 'station' ? dest(sec) : null);
-    body = entries.length ? `<ul class="list card">${entries.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="empty">Nothing logged under ${CATS[cat]}${cat === 'station' ? ' for ' + esc(dest(sec)) : ''} yet.</p>`;
-  }
+  const station = libraryEntries('station', dest(sec));
   view.innerHTML = h`
     <a href="#/" class="back">‹ Home</a>
     <h1 class="m0">Review · S${sec.number} ${esc(dest(sec))}</h1>
-    <p class="muted">${cat === 'missed' ? 'What you have been missing, in flight order.' : cat === 'station' ? `Everything you noted about ${esc(dest(sec))}.` : `All your ${CATS[cat].toLowerCase()} notes, newest first.`}${sec.conditions.length && cat === 'missed' ? ` Conditions: <b>${esc(sec.conditions.join(', '))}</b>.` : ''}</p>
-    <div class="chips mt">${chips}</div>
-    ${body}
+    <p class="muted">What you have been missing, in flight order${sec.conditions.length ? `. Conditions: <b>${esc(sec.conditions.join(', '))}</b>` : ''}.</p>
+    ${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>'}
+    <h2>${esc(dest(sec))} · ${esc(CITY[dest(sec)] || AIRPORTS[dest(sec)] || 'station notes')}</h2>
+    ${station.length ? `<ul class="list card">${station.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Nothing noted about ${esc(dest(sec))} yet. Lines you add under Station specific will show here next time.</p>`}
     <div class="actions"><a class="btn primary big grow" href="#/">Done</a></div>`;
 }
 /** All logged lines of one category across sectors, newest first; station filtered by airport. */
