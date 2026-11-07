@@ -85,8 +85,8 @@ window.addEventListener('load', () => { render(); initPWA(); });
 
 function render() {
   const [path, arg, sub] = location.hash.replace(/^#\/?/, '').split('/');
-  document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('active', a.dataset.tab === (path || 'sectors') || (path === 'sector' && a.dataset.tab === 'sectors') || (path === 'item' && a.dataset.tab === 'items')));
-  const routes = { '': vSectors, sectors: vSectors, sector: vSector, new: vNewSector, items: vItems, item: vItem, trends: vTrends, settings: vSettings };
+  document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('active', a.dataset.tab === (path || 'sectors') || (path === 'sector' && a.dataset.tab === 'sectors') || (path === 'item' && a.dataset.tab === 'items') || (['new', 'edit'].includes(path) && a.dataset.tab === 'sectors')));
+  const routes = { '': vSectors, sectors: vSectors, sector: vSector, new: () => vNewSector(), edit: vNewSector, items: vItems, item: vItem, trends: vTrends, settings: vSettings };
   (routes[path] || vSectors)(arg, sub);
   window.scrollTo(0, 0);
 }
@@ -113,32 +113,48 @@ function vSectors() {
     <ul class="list card">${secs.map(s => { const sc = sectorScored(s); return `<li><a href="#/sector/${s.id}" class="row between" style="color:inherit"><div class="grow"><div class="item-title">S${s.number} ${esc(s.route)} <span class="muted">${esc(s.date)}</span></div><div class="item-sub">${esc(s.instructor || '—')} · ${sectorMisses(s)} missed · ${s.logs.length} logged${sc.scored ? ` · recall ${sc.hits}/${sc.scored}` : ''}</div></div><span class="muted">›</span></a></li>`; }).join('') || '<li class="empty">No sectors yet.</li>'}</ul>`;
 }
 
-// ---------- new sector ----------
-function vNewSector() {
+// ---------- new / edit sector ----------
+const BASE = 'SIN';
+function vNewSector(editId) {
+  const sec = editId ? S.sectors.find(s => s.id === editId) : null;
+  if (editId && !sec) { location.hash = '#/'; return; }
   const last = S.sectors.at(-1);
-  const num = (last?.number || 0) + 1;
-  const routes = [...new Set(S.sectors.map(s => s.route))].reverse();
+  const dests = [...new Set([...Object.keys(AIRPORTS).filter(a => a !== BASE), ...S.sectors.map(s => s.route.split('-').pop())])].filter(Boolean).sort();
+  const instructors = [...new Set(S.sectors.map(s => s.instructor).filter(Boolean))].sort();
+  const curDest = sec ? sec.route.split('-').pop() : '';
+  const curInst = sec ? sec.instructor : (last?.instructor || '');
+  const opt = (list, cur, other) => list.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(v)}${AIRPORTS[v] ? ' · ' + AIRPORTS[v] : ''}</option>`).join('') + `<option value="__other">${other}</option>`;
   view.innerHTML = h`
-    <h1>New sector</h1>
+    <h1>${sec ? 'Edit sector' : 'New sector'}</h1>
     <form id="f" class="card stack">
-      <div class="row"><label class="f grow">Sector no.<input name="number" type="number" value="${num}" required></label>
-      <label class="f grow">Date<input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required></label></div>
-      <label class="f">Route<input name="route" list="routes" placeholder="SIN-HAK" value="${esc(routes[0] || 'SIN-')}" required style="text-transform:uppercase"><datalist id="routes">${routes.map(r => `<option value="${esc(r)}">`).join('')}${Object.keys(AIRPORTS).filter(a => a !== 'SIN').map(a => `<option value="SIN-${a}">`).join('')}</datalist></label>
-      <div class="row"><label class="f grow">Instructor<input name="instructor" placeholder="Pehon"></label><label class="f grow">Safety pilot<input name="safety"></label></label></div>
-      <label class="f">Conditions<div class="chips" id="conds">${CONDITIONS.map(c => `<button type="button" class="chip" data-c="${c}">${c}</button>`).join('')}</div></label>
-      <button class="btn primary block" type="submit">Create and score recall</button>
+      <div class="row"><label class="f grow">Sector no.<input name="number" type="number" value="${sec ? sec.number : (last?.number || 0) + 1}" required></label>
+      <label class="f grow">Date<input name="date" type="date" value="${sec ? esc(sec.date) : new Date().toISOString().slice(0, 10)}" required></label></div>
+      <label class="f">Destination (from ${BASE})<select name="dest">${sec ? '' : '<option value="" selected disabled>choose…</option>'}${opt(dests, curDest, '+ other airport…')}</select><input name="destOther" placeholder="IATA code, e.g. KUL" maxlength="4" style="text-transform:uppercase;display:none"></label>
+      <label class="f">Instructor<select name="inst">${instructors.length ? '' : '<option value="" disabled selected>none yet</option>'}${opt(instructors, curInst, '+ new instructor…')}</select><input name="instOther" placeholder="Name" style="display:none"></label>
+      <label class="f">Conditions<div class="chips" id="conds">${CONDITIONS.map(c => `<button type="button" class="chip ${sec?.conditions.includes(c) ? 'on' : ''}" data-c="${c}">${c}</button>`).join('')}</div></label>
+      <button class="btn primary block" type="submit">${sec ? 'Save' : 'Create and score recall'}</button>
+      ${sec ? `<button class="btn block danger" type="button" id="delsec">Delete sector</button>` : ''}
     </form>
-    <p class="muted">Before the flight: open the sector and read the Recall tab from memory. After: score HIT/MISS first, then log.</p>`;
-  const conds = new Set();
-  view.querySelectorAll('#conds .chip').forEach(b => b.onclick = () => { b.classList.toggle('on'); conds.has(b.dataset.c) ? conds.delete(b.dataset.c) : conds.add(b.dataset.c); });
-  document.getElementById('f').onsubmit = e => {
+    ${sec ? '' : '<p class="muted">Before the flight: open the sector and read the Recall tab from memory. After: score HIT/MISS first, then log.</p>'}`;
+  const f = document.getElementById('f');
+  const conds = new Set(sec?.conditions || []);
+  f.querySelectorAll('#conds .chip').forEach(b => b.onclick = () => { b.classList.toggle('on'); conds.has(b.dataset.c) ? conds.delete(b.dataset.c) : conds.add(b.dataset.c); });
+  const wire = (sel, inp) => { const on = () => { inp.style.display = sel.value === '__other' ? '' : 'none'; if (sel.value === '__other') inp.focus(); }; sel.onchange = on; on(); };
+  wire(f.dest, f.destOther); wire(f.inst, f.instOther);
+  if (!instructors.length) { f.inst.value = '__other'; f.instOther.style.display = ''; }
+  f.onsubmit = e => {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    const sec = { id: 's' + uid(), number: +fd.get('number'), route: String(fd.get('route')).toUpperCase().trim(), date: fd.get('date'),
-      instructor: fd.get('instructor').trim(), safety: fd.get('safety').trim(), conditions: [...conds], recall: {}, logs: [], emphasis: '', next: '', createdAt: Date.now() };
-    S.sectors.push(sec); S.sectors.sort((a, b) => a.number - b.number); save();
-    location.hash = `#/sector/${sec.id}/recall`;
+    const dest = (f.dest.value === '__other' ? f.destOther.value : f.dest.value).toUpperCase().trim();
+    if (!/^[A-Z]{3,4}$/.test(dest)) { toast('Pick a destination'); return; }
+    const instructor = (f.inst.value === '__other' ? f.instOther.value : f.inst.value || '').trim();
+    const data = { number: +f.number.value, route: `${BASE}-${dest}`, date: f.date.value, instructor, conditions: [...conds] };
+    if (sec) { Object.assign(sec, data); S.sectors.sort((a, b) => a.number - b.number); save(); location.hash = `#/sector/${sec.id}`; return; }
+    const ns = Object.assign({ id: 's' + uid(), safety: '', recall: {}, logs: [], emphasis: '', next: '', createdAt: Date.now() }, data);
+    S.sectors.push(ns); S.sectors.sort((a, b) => a.number - b.number); save();
+    location.hash = `#/sector/${ns.id}/recall`;
   };
+  const del = document.getElementById('delsec');
+  if (del) del.onclick = () => { if (!confirm(`Delete sector ${sec.number} ${sec.route} and everything logged in it?`)) return; S.sectors = S.sectors.filter(s => s.id !== sec.id); save(); location.hash = '#/'; };
 }
 
 // ---------- sector detail ----------
@@ -152,17 +168,8 @@ function vSector(id, tab = 'recall') {
     <div class="subtabs">${tabs.map(t => `<button class="${t === tab ? 'on' : ''}" data-t="${t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
     <div id="pane"></div>`;
   view.querySelectorAll('.subtabs button').forEach(b => b.onclick = () => location.hash = `#/sector/${sec.id}/${b.dataset.t}`);
-  document.getElementById('edit').onclick = () => editSector(sec);
+  document.getElementById('edit').onclick = () => location.hash = `#/edit/${sec.id}`;
   ({ recall: paneRecall, log: paneLog, notes: paneNotes, export: paneExport })[tab](sec, document.getElementById('pane'));
-}
-
-function editSector(sec) {
-  const route = prompt('Route', sec.route); if (route === null) return;
-  const date = prompt('Date (YYYY-MM-DD)', sec.date); if (date === null) return;
-  const instructor = prompt('Instructor', sec.instructor); if (instructor === null) return;
-  const conditions = prompt('Conditions, comma separated', sec.conditions.join(', ')); if (conditions === null) return;
-  Object.assign(sec, { route: route.toUpperCase().trim(), date, instructor: instructor.trim(), conditions: conditions.split(',').map(s => s.trim()).filter(Boolean) });
-  save(); render();
 }
 
 function paneRecall(sec, el) {
@@ -261,7 +268,7 @@ function toMarkdown(sec) {
   const focus = Object.keys(sec.recall).length ? Object.keys(sec.recall).slice(0, 3) : act.map(x => x.item.id);
   while (focus.length < 3) focus.push('');
   const L = [];
-  L.push('---', `sector: ${sec.number}`, `route: ${sec.route}`, `date: ${sec.date}`, `instructor: ${sec.instructor}`, `safety: ${sec.safety || ''}`,
+  L.push('---', `sector: ${sec.number}`, `route: ${sec.route}`, `date: ${sec.date}`, `instructor: ${sec.instructor}`, ...(sec.safety ? [`safety: ${sec.safety}`] : []),
     `tags: [CUP, Phase2A${sec.instructor ? ', ' + sec.instructor.split(' ')[0] : ''}, ${sec.route.split('-').pop()}]`,
     `conditions: [${sec.conditions.join(', ')}]`, 'focus3:');
   for (const id of focus) L.push(`  - item: ${id}`, `    result: ${sec.recall[id] || ''}`);

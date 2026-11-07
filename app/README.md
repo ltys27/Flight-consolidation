@@ -5,7 +5,7 @@ backend; everything is stored in the browser (localStorage) and can be exported.
 
 ## What it does
 
-- **Sectors**: create a sector (number, route, date, instructor, conditions), then
+- **Sectors**: create a sector (number, destination from SIN, date, instructor from a dropdown of previous ones, conditions), then
   **Recall** → **Log** → **Notes** → **Export**.
 - **Recall**: every item you have ever missed, sorted by miss count, top three badged
   *Focus*. Score each one HIT or MISS after the flight. An item **graduates** off the
