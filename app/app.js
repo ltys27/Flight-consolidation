@@ -12,6 +12,13 @@ const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 
   'vacate', 'taxi-in', 'parking'];
 const AIRPORTS = { SIN: 'WSSS', DPS: 'WADD', CJB: 'VOCB', PEN: 'WMKP', HAK: 'ZJHK', SRG: 'WARS', HKT: 'VTSP', TRZ: 'VOTR' };
 const CITY = { DPS: 'Denpasar', CJB: 'Coimbatore', PEN: 'Penang', HAK: 'Haikou', SRG: 'Semarang', HKT: 'Phuket', TRZ: 'Tiruchirappalli' };
+const PHASE_LABEL = { general: 'Other', preflight: 'Preflight', prelims: 'Prelims', 'cockpit-prep': 'Cockpit prep', 'box-setup': 'Box setup', briefing: 'Briefing', 'cc-briefing': 'CC briefing', fuel: 'Fuel', pushback: 'Pushback', start: 'Start', 'taxi-out': 'Taxi out', taxi: 'Taxi', takeoff: 'Takeoff', climb: 'Climb', cruise: 'Cruise', descent: 'Descent', approach: 'Approach', landing: 'Landing', vacate: 'Vacate', 'taxi-in': 'Taxi in', parking: 'Parking' };
+const PHASE_ORDER = ['preflight', 'prelims', 'cockpit-prep', 'box-setup', 'fuel', 'briefing', 'cc-briefing', 'pushback', 'start', 'taxi-out', 'taxi', 'takeoff', 'climb', 'cruise', 'descent', 'approach', 'landing', 'vacate', 'taxi-in', 'parking', 'general'];
+function groupByPhase(list) {
+  const g = new Map(); for (const ph of PHASE_ORDER) g.set(ph, []);
+  for (const x of list) (g.get(PHASES.includes(x.item.phase) ? x.item.phase : 'general') || g.get('general')).push(x);
+  return [...g].filter(([, v]) => v.length);
+}
 const CONDITIONS = ['tailwind', 'crosswind', 'wet', 'mel', 'load sheet', 'tobt', 'seto', 'notoc', 'cb', 'icing', 'night', 'slot'];
 
 // ============================================================ store
@@ -70,7 +77,7 @@ const activeItems = (sectors = S.sectors) => withHistory(sectors).filter(x => x.
 /** Recall list as it stood before this sector (so the current sector's scores don't reorder it). */
 function listFor(sec) {
   const before = S.sectors.filter(s => s.number < sec.number);
-  const list = activeItems(before).filter(x => x.item.createdSector <= sec.number);
+  const list = activeItems(before).filter(x => x.item.createdSector < sec.number);
   for (const id of Object.keys(sec.recall)) if (!list.some(x => x.item.id === id) && S.items[id]) list.push({ item: S.items[id], h: history(S.items[id], before) });
   return list;
 }
@@ -174,7 +181,7 @@ function vHome() {
       <div class="muted">Next flight</div>
       <h1 class="m0">S${next.number} · ${esc(next.route)}</h1>
       <div class="muted">${fmtDate(next.date)} · ${esc(next.instructor || 'no instructor')}${next.conditions.length ? ' · ' + esc(next.conditions.join(', ')) : ''}</div>
-      <div class="actions"><a class="btn primary big" href="#/prepare/${next.id}">▶ Prepare</a><a class="btn big" href="#/debrief/${next.id}">✓ Debrief</a></div>
+      <div class="actions"><a class="btn primary big" href="#/prepare/${next.id}">☰ Review</a><a class="btn big" href="#/debrief/${next.id}">✓ Debrief</a></div>
       <a class="muted" href="#/plan/${next.id}">Edit flight</a>
     </section>` : `<section class="hero">
       <div class="muted">${last ? `Last flight S${last.number} ${esc(last.route)} debriefed` : 'No flights yet'}</div>
@@ -231,131 +238,107 @@ function vPlan(editId) {
   };
 }
 
-// ============================================================ prepare (before the flight)
-function vPrepare(id, stepStr) {
+// ============================================================ review (before the flight)
+function vPrepare(id) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
-  const focus = listFor(sec).slice(0, 3);
-  const its = ifThens(sec).slice(0, 8);
+  const list = listFor(sec); const focus = new Set(list.slice(0, 3).map(x => x.item.id));
   const facts = destFacts(sec);
-  const cards = [];
-  cards.push({ kind: 'cover', title: `S${sec.number} · ${sec.route}`, body: `<p>Before you look: say your <b>Focus 3</b> out loud.</p><p class="muted">Then tap each card to check yourself.</p>` });
-  focus.forEach((x, i) => cards.push({ kind: 'flip', label: `Focus ${i + 1} of ${focus.length}`, front: `<div class="big-q">?</div><p class="muted">What is Focus ${i + 1}? Say it, then tap to reveal.</p>`, back: `<div class="t2">${esc(x.item.title)}</div>${x.item.cue ? `<p class="cue">when ${esc(x.item.cue)}</p>` : ''}<p class="muted">${x.h.misses} misses · ${esc(x.item.phase)}</p>` }));
-  if (its.length) cards.push({ kind: 'cover', title: 'If-thens', body: `<p>Say each one aloud. ${sec.conditions.length ? `Conditions: <b>${esc(sec.conditions.join(', '))}</b>.` : ''}</p>` });
-  its.forEach((it, i) => { const [w, d] = splitWhen(it.cue || it.title); cards.push({ kind: 'info', label: `If-then ${i + 1} of ${its.length}`, body: `<div class="ifthen"><span class="k">If</span> ${esc(w)}<br><span class="k">then</span> ${d ? esc(d) : '<i class="muted">write the action on the item page</i>'}</div>` }); });
-  if (facts.length) cards.push({ kind: 'info', label: `${dest(sec)} · ${CITY[dest(sec)] || AIRPORTS[dest(sec)] || ''}`, body: `<ul class="facts">${facts.map(f => `<li>${esc(f.text)} <span class="muted">S${f.sector}</span></li>`).join('')}</ul>` });
-  cards.push({ kind: 'cover', title: 'At the gate', body: `<ol class="gate">${focus.map(x => `<li>${esc(x.item.title)}</li>`).join('') || '<li class="muted">nothing on the list</li>'}</ol><p class="muted">Only these three. Good flight.</p>`, last: true });
-  let step = Math.min(cards.length - 1, Math.max(0, +stepStr || 0));
-  const draw = () => {
-    const c = cards[step];
-    view.innerHTML = h`
-      <div class="row between"><a href="#/" class="back">‹ Home</a><span class="muted">${step + 1} / ${cards.length}</span></div>
-      <div class="progress"><div style="width:${(step + 1) / cards.length * 100}%"></div></div>
-      <div class="deck"><div class="pcard ${c.kind}" id="pc">${c.label ? `<div class="lbl">${c.label}</div>` : ''}${c.kind === 'cover' ? `<h1>${c.title}</h1>${c.body}` : c.kind === 'flip' ? `<div class="face ff">${c.front}</div><div class="face fb" hidden>${c.back}</div>` : c.body}</div></div>
-      <div class="actions">${step > 0 ? '<button class="btn big" id="prev">‹ Back</button>' : ''}${c.last ? '<a class="btn primary big grow" href="#/">Done</a>' : `<button class="btn primary big grow" id="next">${c.kind === 'flip' ? 'Reveal' : 'Next ›'}</button>`}</div>`;
-    const pc = document.getElementById('pc');
-    const next = () => { if (c.kind === 'flip' && pc.querySelector('.fb').hidden) { pc.querySelector('.ff').hidden = true; pc.querySelector('.fb').hidden = false; pc.classList.add('flipped'); document.getElementById('next').textContent = 'Next ›'; return; } step++; draw(); };
-    const nb = document.getElementById('next'); if (nb) nb.onclick = next;
-    const pb = document.getElementById('prev'); if (pb) pb.onclick = () => { step--; draw(); };
-    if (c.kind === 'flip') pc.onclick = next;
-    swipeCard(pc, () => { if (step > 0) { step--; draw(); } else draw(); }, () => { if (!c.last) { step++; draw(); } else draw(); });
-  };
-  draw();
+  view.innerHTML = h`
+    <a href="#/" class="back">‹ Home</a>
+    <h1 class="m0">Review · S${sec.number} ${esc(dest(sec))}</h1>
+    <p class="muted">What you have been missing, in flight order. Read it through once${sec.conditions.length ? `. Conditions: <b>${esc(sec.conditions.join(', '))}</b>` : ''}.</p>
+    ${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li class="${focus.has(x.item.id) ? 'is-focus' : ''}"><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>'}
+    ${facts.length ? `<h2>${esc(dest(sec))} · ${esc(CITY[dest(sec)] || AIRPORTS[dest(sec)] || '')}</h2><ul class="list card">${facts.map(f => `<li>${esc(f.text)} <span class="muted">S${f.sector}</span></li>`).join('')}</ul>` : ''}
+    <div class="actions"><a class="btn primary big grow" href="#/">Done</a></div>`;
 }
 
 // ============================================================ debrief (after the flight)
 function vDebrief(id, stepStr) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
-  const list = listFor(sec); const focus = list.slice(0, 3), rest = list.slice(3);
-  const steps = ['Focus 3', 'Other misses', 'Log', 'Done'];
-  let step = Math.min(3, Math.max(0, +stepStr || 0));
-  const go = s => { step = s; location.hash = `#/debrief/${sec.id}/${s}`; };
-  const head = () => h`<div class="row between"><a href="#/" class="back">‹ Home</a><span class="muted">S${sec.number} · ${esc(sec.route)}</span></div>
-    <div class="steps">${steps.map((s, i) => `<span class="${i === step ? 'on' : i < step ? 'done' : ''}">${i + 1}<em>${s}</em></span>`).join('')}</div>`;
-  const setScore = (id, r) => { if (r) sec.recall[id] = r; else delete sec.recall[id]; if (r === 'MISS' && S.items[id]?.manualRetiredAt) delete S.items[id].manualRetiredAt; save(); };
+  const list = listFor(sec); const focus = new Set(list.slice(0, 3).map(x => x.item.id));
+  const step = stepStr === '1' ? 1 : 0;
+  const head = () => h`<div class="row between"><a href="#/" class="back">‹ Home</a><span class="muted">S${sec.number} · ${esc(sec.route)}</span></div>`;
+  const isMissed = x => sec.recall[x.item.id] === 'MISS' || sec.logs.some(l => l.itemId === x.item.id && !l.good);
 
   if (step === 0) {
-    const todo = focus.filter(x => !(x.item.id in sec.recall)); const cur = todo[0];
-    view.innerHTML = head() + (cur ? h`
-      <p class="hint">Swipe <b>right = Hit</b>, <b>left = Miss</b>. ${focus.length - todo.length + 1} of ${focus.length}</p>
-      <div class="deck"><div class="pcard score" id="pc"><div class="lbl">Focus ${focus.indexOf(cur) + 1}</div><div class="t2">${esc(cur.item.title)}</div>${cur.item.cue ? `<p class="cue">when ${esc(cur.item.cue)}</p>` : ''}${meta(cur)}<div class="stamp hit">HIT</div><div class="stamp miss">MISS</div></div></div>
-      <div class="actions three"><button class="btn big miss" id="m">✕ Miss</button><button class="btn big" id="na">n/a</button><button class="btn big hit" id="hh">✓ Hit</button></div>` : h`
-      <h1>Focus 3 scored</h1>
-      <ul class="list card">${focus.map(x => `<li class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div></div><div class="seg" data-id="${x.item.id}"><button class="${sec.recall[x.item.id] === 'HIT' ? 'on hit' : ''}" data-r="HIT">Hit</button><button class="${sec.recall[x.item.id] === 'MISS' ? 'on miss' : ''}" data-r="MISS">Miss</button><button class="${!sec.recall[x.item.id] ? 'on' : ''}" data-r="">n/a</button></div></li>`).join('') || '<li class="empty">Nothing was on the list before this flight.</li>'}</ul>
-      <div class="actions"><button class="btn primary big grow" id="next">Next: other misses ›</button></div>`);
-    if (cur) {
-      const pc = document.getElementById('pc'); const done = r => { setScore(cur.item.id, r); vDebrief(id, '0'); };
-      swipeCard(pc, () => done('HIT'), () => done('MISS'));
-      document.getElementById('hh').onclick = () => done('HIT'); document.getElementById('m').onclick = () => done('MISS'); document.getElementById('na').onclick = () => { sec.recall[cur.item.id] = 'NA'; save(); vDebrief(id, '0'); };
-    } else {
-      view.querySelectorAll('.seg button').forEach(b => b.onclick = () => { setScore(b.parentElement.dataset.id, b.dataset.r); vDebrief(id, '0'); });
-      document.getElementById('next').onclick = () => go(1);
-    }
-    for (const k of Object.keys(sec.recall)) if (sec.recall[k] === 'NA') { delete sec.recall[k]; sec.na = sec.na || {}; sec.na[k] = 1; save(); }
-    return;
-  }
-  if (step === 1) {
-    const q = sec._q || '';
-    const shown = rest.filter(x => !q || x.item.title.toLowerCase().includes(q.toLowerCase()));
+    const newLogs = sec.logs.filter(l => !list.some(x => x.item.id === l.itemId));
+    const rowItem = x => `<li class="tap ${isMissed(x) ? 'missed' : ''}" data-id="${x.item.id}"><div class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div><div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${strip(x.h)}</div></div><span class="tick">${isMissed(x) ? '✕' : '✓'}</span></div></li>`;
+    const rowNew = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t">${esc(l.text)}</div><div class="meta">${l.dest ? '<span class="badge">fact</span>' : l.type === 'C' ? '<span class="badge">note</span>' : l.type === 'B' ? '<span class="badge B">if-then</span>' : '<span class="badge miss-b">new miss</span>'}${l.itemId && list.some(x => x.item.id === l.itemId) ? '' : ''}</div></div><span class="tick miss">✕</span></div></li>`;
+    const groups = groupByPhase(list);
+    const newByPhase = ph => newLogs.filter(l => (PHASES.includes(l.phase) ? l.phase : 'general') === ph);
+    const phasesShown = new Set(groups.map(([ph]) => ph));
+    for (const l of newLogs) phasesShown.add(PHASES.includes(l.phase) ? l.phase : 'general');
     view.innerHTML = head() + h`
-      <p class="hint">Anything else from the list you missed this flight? Tap to mark. Untouched items are <b>not</b> counted as hits.</p>
-      <input id="q" placeholder="Search the list…" value="${esc(q)}">
-      <div class="chips wrap" id="rest">${shown.slice(0, 40).map(x => `<button class="chip ${sec.recall[x.item.id] === 'MISS' ? 'on miss' : ''}" data-id="${x.item.id}">${esc(x.item.title)}</button>`).join('') || '<span class="muted">No items.</span>'}${shown.length > 40 ? `<span class="muted">${shown.length - 40} more — search to narrow</span>` : ''}</div>
-      <label class="check"><input type="checkbox" id="allhit" ${sec.restHit ? 'checked' : ''}> Everything else on the list went fine — count the rest as <b>Hit</b></label>
-      <div class="actions"><button class="btn big" id="prev">‹ Back</button><button class="btn primary big grow" id="next">Next: log ›</button></div>`;
-    document.getElementById('q').oninput = e => { sec._q = e.target.value; vDebrief(id, '1'); const i = document.getElementById('q'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
-    view.querySelectorAll('#rest .chip').forEach(b => b.onclick = () => { const i = b.dataset.id; if (sec.recall[i] === 'MISS') { delete sec.recall[i]; if (sec.restHit) sec.recall[i] = 'HIT'; } else setScore(i, 'MISS'); b.classList.toggle('on', sec.recall[i] === 'MISS'); b.classList.toggle('miss', sec.recall[i] === 'MISS'); save(); });
-    document.getElementById('allhit').onchange = e => { sec.restHit = e.target.checked; for (const x of rest) { if (sec.recall[x.item.id] === 'MISS') continue; if (sec.restHit) sec.recall[x.item.id] = 'HIT'; else if (sec.recall[x.item.id] === 'HIT') delete sec.recall[x.item.id]; } save(); };
-    document.getElementById('prev').onclick = () => go(0); document.getElementById('next').onclick = () => { delete sec._q; save(); go(2); };
-    return;
-  }
-  if (step === 2) {
-    view.innerHTML = head() + h`
-      <form id="lf" class="card stack composer">
-        <textarea name="text" placeholder="What happened? One thing per line, in your words." rows="2" required autofocus></textarea>
-        <div id="sug"></div>
-        <div class="chips" id="types">${Object.entries(TYPES).map(([k, v]) => `<button type="button" class="chip ${k === 'A' ? 'on' : ''}" data-t="${k}"><span class="badge ${k}">${k}</span>${v}</button>`).join('')}<button type="button" class="chip" data-t="dest">✈ ${esc(dest(sec))} fact</button></div>
-        <div class="row"><select name="phase">${PHASES.map(p => `<option>${p}</option>`).join('')}</select><button type="button" class="chip" id="good">✓ did well</button><button class="btn primary" type="submit">Add</button></div>
-      </form>
-      ${sec.logs.length ? '<h2>Logged <span class="muted">swipe left to delete</span></h2>' : ''}
-      <ul class="list card" id="logs">${sec.logs.slice().reverse().map(l => `<li data-id="${l.id}"><div class="lrow"><div class="t">${esc(l.text)}</div><div class="meta">${l.dest ? '<span class="badge">dest</span>' : `<span class="badge ${l.type}">${l.type}</span>`}<span>${esc(l.phase)}</span>${l.good ? '<span class="hit-n">✓ did well</span>' : ''}${l.itemId ? `<span>↩ ${esc(S.items[l.itemId]?.title || '')}</span>` : ''}</div></div></li>`).join('')}</ul>
-      <div class="actions"><button class="btn big" id="prev">‹ Back</button><button class="btn primary big grow" id="next">Finish ›</button></div>`;
-    const f = document.getElementById('lf'); let type = 'A', good = false, linked = null;
-    const types = f.querySelectorAll('#types .chip');
-    types.forEach(b => b.onclick = () => { types.forEach(x => x.classList.remove('on')); b.classList.add('on'); type = b.dataset.t; });
-    f.querySelector('#good').onclick = e => { good = !good; e.currentTarget.classList.toggle('on', good); };
-    const ta = f.text, sug = f.querySelector('#sug');
-    ta.oninput = () => {
-      linked = null; const q = ta.value.trim().toLowerCase(); if (q.length < 3) { sug.innerHTML = ''; return; }
-      const words = q.split(/\s+/).filter(w => w.length > 2);
-      const hits = Object.values(S.items).map(i => ({ i, n: words.filter(w => i.title.toLowerCase().includes(w)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 3);
-      sug.innerHTML = hits.length ? `<div class="suggest">${hits.map(x => `<button type="button" data-id="${x.i.id}">↩ Same as: <b>${esc(x.i.title)}</b> <span class="muted">${history(x.i).misses}✕</span></button>`).join('')}</div>` : '';
-      sug.querySelectorAll('button').forEach(b => b.onclick = () => { linked = b.dataset.id; sug.innerHTML = `<div class="linked">↩ Repeat of <b>${esc(S.items[linked].title)}</b> <button type="button" id="unlink">×</button></div>`; sug.querySelector('#unlink').onclick = () => { linked = null; sug.innerHTML = ''; }; });
-    };
-    f.onsubmit = e => {
-      e.preventDefault(); const text = ta.value.trim(); if (!text) return;
-      const log = { id: uid(), itemId: linked, type: type === 'dest' ? 'C' : type, phase: f.phase.value, text, good, dest: type === 'dest' };
-      if (!linked && !log.dest && type !== 'C' && !good) { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type, phase: f.phase.value, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
-      if (log.itemId && !good && S.items[log.itemId]?.manualRetiredAt) delete S.items[log.itemId].manualRetiredAt;
-      sec.logs.push(log); save(); vDebrief(id, '2'); toast(linked ? 'Counted as a repeat' : log.itemId ? 'Added to recall' : 'Logged');
-    };
-    view.querySelectorAll('#logs li').forEach(li => swipeRow(li, 'Delete', () => {
-      const i = sec.logs.findIndex(l => l.id === li.dataset.id); const [l] = sec.logs.splice(i, 1); save(); vDebrief(id, '2');
-      toast('Deleted', () => { sec.logs.splice(i, 0, l); save(); });
+      <h1 class="m0">What did you miss?</h1>
+      <p class="muted">Tap anything you missed or were prompted on. Everything else counts as done. Use <b>+</b> to add a new one under its phase.</p>
+      ${PHASE_ORDER.filter(ph => phasesShown.has(ph)).map(ph => { const xs = groups.find(g => g[0] === ph)?.[1] || []; return `<div class="row between"><h2 class="m0">${PHASE_LABEL[ph]}</h2><button class="add" data-ph="${ph}">+</button></div><ul class="list card db" data-ph="${ph}">${xs.map(rowItem).join('')}${newByPhase(ph).map(rowNew).join('')}</ul>`; }).join('')}
+      <div class="card addph"><button class="btn block" id="addother">+ Add a miss in another phase</button></div>
+      <div class="actions"><button class="btn primary big grow" id="finish">Finish debrief ›</button></div>`;
+    view.querySelectorAll('li.tap').forEach(li => li.onclick = () => {
+      const iid = li.dataset.id; const on = sec.recall[iid] === 'MISS';
+      if (on) delete sec.recall[iid]; else { sec.recall[iid] = 'MISS'; if (S.items[iid]?.manualRetiredAt) delete S.items[iid].manualRetiredAt; }
+      save(); li.classList.toggle('missed', !on); li.querySelector('.tick').textContent = on ? '✓' : '✕';
+    });
+    view.querySelectorAll('li.newlog').forEach(li => swipeRow(li, 'Delete', () => {
+      const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1);
+      if (l.itemId && S.items[l.itemId]?.createdSector === sec.number && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { var removed = S.items[l.itemId]; delete S.items[l.itemId]; }
+      save(); vDebrief(id, '0'); toast('Deleted', () => { sec.logs.splice(i, 0, l); if (removed) S.items[removed.id] = removed; save(); });
     }));
-    document.getElementById('prev').onclick = () => go(1); document.getElementById('next').onclick = () => { sec.done = true; save(); go(3); };
+    view.querySelectorAll('button.add').forEach(b => b.onclick = () => composer(sec, b.dataset.ph));
+    document.getElementById('addother').onclick = () => composer(sec, null);
+    document.getElementById('finish').onclick = () => {
+      for (const x of list) if (!isMissed(x)) sec.recall[x.item.id] = 'HIT'; else if (sec.recall[x.item.id] !== 'MISS') delete sec.recall[x.item.id];
+      sec.done = true; save(); location.hash = `#/debrief/${sec.id}/1`;
+    };
     return;
   }
-  // step 3: done
-  const sc = sectorScored(sec); const m = sectorMisses(sec);
+  // step 1: done
+  const m = sectorMisses(sec); const sc = sectorScored(sec);
   const grads = withHistory().filter(x => x.h.status === 'retired' && x.h.events.at(-1)?.sector.id === sec.id && x.h.events.at(-1)?.ev === 'HIT');
+  const newCount = sec.logs.filter(l => l.itemId && S.items[l.itemId]?.createdSector === sec.number).length;
   view.innerHTML = head() + h`
     <h1>S${sec.number} debriefed</h1>
-    <div class="kpis"><div class="kpi"><b>${m}</b><span>missed</span></div><div class="kpi"><b>${sc.hits}/${sc.scored}</b><span>recall hit</span></div><div class="kpi"><b>${sec.logs.length}</b><span>logged</span></div><div class="kpi"><b>${grads.length}</b><span>graduated</span></div></div>
+    <div class="kpis"><div class="kpi"><b>${m}</b><span>missed</span></div><div class="kpi"><b>${sc.hits}</b><span>done clean</span></div><div class="kpi"><b>${newCount}</b><span>new on list</span></div><div class="kpi"><b>${grads.length}</b><span>off the list</span></div></div>
     ${grads.length ? `<div class="card"><b>Off the list:</b> ${grads.map(x => esc(x.item.title)).join(' · ')}</div>` : ''}
     <div class="card stack"><label class="f">Instructor emphasis<textarea id="emph" rows="3" placeholder="What did the instructor keep coming back to?">${esc(sec.emphasis)}</textarea></label></div>
-    <div class="actions"><button class="btn big" id="md">Export markdown</button><a class="btn primary big grow" href="#/">Home</a></div>`;
+    <div class="actions"><a class="btn big" href="#/debrief/${sec.id}/0">‹ Edit</a><a class="btn big" href="#/sector/${sec.id}">Export</a><a class="btn primary big grow" href="#/">Home</a></div>`;
   document.getElementById('emph').onchange = e => { sec.emphasis = e.target.value; save(); };
-  document.getElementById('md').onclick = () => location.hash = `#/sector/${sec.id}`;
+}
+
+/** Bottom-sheet composer: one line, one phase, optional kind. */
+function composer(sec, phase) {
+  const sheet = document.createElement('div'); sheet.className = 'sheet';
+  sheet.innerHTML = h`<div class="sheet-card">
+    <div class="row between"><b>Add${phase ? ' · ' + PHASE_LABEL[phase] : ''}</b><button class="x" id="close">✕</button></div>
+    <form id="cf" class="stack">
+      <textarea name="text" rows="2" placeholder="What did you miss? In your words." required></textarea>
+      <div id="sug"></div>
+      ${phase ? '' : `<select name="phase">${PHASE_ORDER.map(p => `<option value="${p}">${PHASE_LABEL[p]}</option>`).join('')}</select>`}
+      <div class="chips"><button type="button" class="chip on" data-k="miss">missed step</button><button type="button" class="chip" data-k="ifthen">if-then</button><button type="button" class="chip" data-k="note">just a note</button><button type="button" class="chip" data-k="dest">${esc(dest(sec))} fact</button></div>
+      <button class="btn primary big block" type="submit">Add</button>
+    </form></div>`;
+  document.body.appendChild(sheet);
+  const f = sheet.querySelector('#cf'); const ta = f.text; let kind = 'miss', linked = null;
+  const close = () => sheet.remove();
+  sheet.querySelector('#close').onclick = close; sheet.onclick = e => { if (e.target === sheet) close(); };
+  f.querySelectorAll('.chip').forEach(b => b.onclick = () => { f.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); b.classList.add('on'); kind = b.dataset.k; });
+  const sug = f.querySelector('#sug');
+  ta.oninput = () => {
+    linked = null; const q = ta.value.trim().toLowerCase(); if (q.length < 3) { sug.innerHTML = ''; return; }
+    const words = q.split(/\s+/).filter(w => w.length > 2);
+    const hits = Object.values(S.items).map(i => ({ i, n: words.filter(w => i.title.toLowerCase().includes(w)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 3);
+    sug.innerHTML = hits.length ? `<div class="suggest">${hits.map(x => `<button type="button" data-id="${x.i.id}">↩ Already on the list: <b>${esc(x.i.title)}</b></button>`).join('')}</div>` : '';
+    sug.querySelectorAll('button').forEach(b => b.onclick = () => { linked = b.dataset.id; sug.innerHTML = `<div class="linked">↩ Counts as <b>${esc(S.items[linked].title)}</b><button type="button" id="unlink">×</button></div>`; sug.querySelector('#unlink').onclick = () => { linked = null; sug.innerHTML = ''; }; });
+  };
+  setTimeout(() => ta.focus(), 50);
+  f.onsubmit = e => {
+    e.preventDefault(); const text = ta.value.trim(); if (!text) return;
+    const ph = phase || f.phase.value;
+    const log = { id: uid(), itemId: linked, type: kind === 'ifthen' ? 'B' : kind === 'miss' ? 'A' : 'C', phase: ph, text, good: false, dest: kind === 'dest' };
+    if (linked) { sec.recall[linked] = 'MISS'; if (S.items[linked]?.manualRetiredAt) delete S.items[linked].manualRetiredAt; }
+    else if (kind === 'miss' || kind === 'ifthen') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: log.type, phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
+    sec.logs.push(log); save(); close(); render(); toast(linked ? 'Marked as missed' : kind === 'miss' || kind === 'ifthen' ? 'Added to the list' : 'Noted');
+  };
 }
 
 // ============================================================ sector detail (read-only summary + export)
@@ -366,7 +349,7 @@ function vSector(id) {
   view.innerHTML = h`
     <a href="#/" class="back">‹ Home</a>
     <div class="row between"><div><h1 class="m0">S${sec.number} · ${esc(sec.route)}</h1><div class="muted">${fmtDate(sec.date)} · ${esc(sec.instructor || '—')}</div></div><a class="btn small" href="#/plan/${sec.id}">Edit</a></div>
-    <div class="actions"><a class="btn big grow" href="#/prepare/${sec.id}">▶ Prepare</a><a class="btn primary big grow" href="#/debrief/${sec.id}">${debriefed(sec) ? 'Reopen debrief' : '✓ Debrief'}</a></div>
+    <div class="actions"><a class="btn big grow" href="#/prepare/${sec.id}">☰ Review</a><a class="btn primary big grow" href="#/debrief/${sec.id}">${debriefed(sec) ? 'Reopen debrief' : '✓ Debrief'}</a></div>
     <h2>Recall <span class="muted">${sc.hits}/${sc.scored} hit</span></h2>
     <ul class="list card">${list.filter(x => sec.recall[x.item.id]).map(x => `<li class="row between"><span class="t">${esc(x.item.title)}</span><span class="cell ${sec.recall[x.item.id] === 'HIT' ? 'H' : 'X'} wide">${sec.recall[x.item.id]}</span></li>`).join('') || '<li class="empty">Not scored.</li>'}</ul>
     <h2>Logged <span class="muted">${sec.logs.length}</span></h2>
@@ -404,7 +387,7 @@ function vItems(filter = 'active') {
     <h1>Recall list</h1>
     <div class="subtabs"><button class="${filter === 'active' ? 'on' : ''}" data-f="active">On the list (${nAct})</button><button class="${filter === 'retired' ? 'on' : ''}" data-f="retired">Graduated (${all.length - nAct})</button></div>
     <p class="hint">${filter === 'active' ? `${S.settings.graduateAfter} hits in a row graduates an item; a miss brings it back. Swipe left to graduate by hand.` : 'Swipe left to pull an item back onto the list.'}</p>
-    <ul class="list card ${filter === 'active' ? 'focus' : ''}" id="il">${list.map((x, i) => `<li data-id="${x.item.id}" class="${filter === 'active' && i < 3 ? 'is-focus' : ''}"><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div>${x.item.cue ? `<div class="cue">when ${esc(x.item.cue)}</div>` : ''}${meta(x)}</a></li>`).join('') || '<li class="empty">Empty.</li>'}</ul>`;
+    <div id="il">${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card">${xs.map(x => `<li data-id="${x.item.id}" class="${filter === 'active' && list.indexOf(x) < 3 ? 'is-focus' : ''}"><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div>${x.item.cue ? `<div class="cue">when ${esc(x.item.cue)}</div>` : ''}<div class="meta">${filter === 'active' && list.indexOf(x) < 3 ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></a></li>`).join('')}</ul>`).join('') || '<p class="empty">Empty.</p>'}</div>`;
   view.querySelectorAll('.subtabs button').forEach(b => b.onclick = () => location.hash = `#/items/${b.dataset.f}`);
   const lastN = (S.sectors.filter(debriefed).at(-1)?.number ?? 0) + 1;
   view.querySelectorAll('#il li[data-id]').forEach(li => swipeRow(li, filter === 'active' ? 'Graduate' : 'Pull back', () => {

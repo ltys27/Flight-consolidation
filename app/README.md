@@ -5,23 +5,21 @@ backend; everything is stored in the browser (localStorage) and can be exported.
 
 ## What it does
 
-Two flows, one per moment:
+The list is the things you have skipped in a flow (cockpit prep, briefing, parking…),
+not knowledge. Two screens, both in flight order from prelims to parking:
 
-- **Prepare** (night before / at the gate): a card deck. Cover card tells you to say
-  the Focus 3 aloud; each Focus card is hidden until you tap **Reveal**; then the
-  if-thens for this destination and its conditions, the destination facts you logged
-  on earlier visits, and a final "at the gate" card with only the three items.
-- **Debrief** (after the flight): a four-step wizard. 1 Swipe each Focus card right
-  for Hit, left for Miss (or use the buttons). 2 Tap anything else from the list you
-  missed; untouched items are not counted as hits unless you tick the box. 3 Log what
-  happened one line at a time; matching items are suggested so a repeat counts against
-  the same item; swipe left to delete, with undo. 4 Summary, instructor emphasis,
-  markdown export.
+- **Review** (before the flight): read through what you have been missing, grouped by
+  phase, Focus 3 badged, plus any facts you noted for that destination. That is all.
+- **Debrief** (after the flight): the same list. Tap anything you missed or were
+  prompted on. Use **+** on a phase to add a new miss in one line; if it matches
+  something already on the list it is counted against that item instead. Swipe a new
+  line left to delete, with undo. **Finish**: everything you did not tap counts as
+  done.
 
-Recall rule: an item **graduates** off the list after N consecutive Hits (N in Data,
-default 2) and is **pulled back** the moment it is missed again. Swipe left on the
-Recall tab to graduate or pull back by hand. Trends: misses per sector, recall hit
-rate, item × sector heatmap, misses by phase.
+An item leaves the list after N clean flights in a row (N in Data, default 2) and
+comes back the moment it is missed again. Swipe left on the Recall tab to take an item
+off or put it back by hand. Trends: misses per sector, item × sector heatmap, misses
+by phase.
 
 ## Install on the phone
 

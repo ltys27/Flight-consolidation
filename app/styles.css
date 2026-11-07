@@ -162,3 +162,15 @@ ol.focus li > a { display: block; color: inherit; }
 .swipe-act.arm { font-size: 17px; }
 .toast button { margin-left: 10px; border: 0; background: transparent; color: var(--accent); font: inherit; font-weight: 700; }
 .list li.swipe a { -webkit-user-drag: none; }
+
+/* ---- v5: review / debrief lists ---- */
+.rv li.is-focus, .db li.is-focus { }
+li.tap { cursor: pointer; } li.tap .tick { flex: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; background: var(--hit-bg); color: var(--hit); }
+li.tap.missed .tick, .tick.miss { background: var(--miss-bg); color: var(--miss); }
+li.tap.missed .t { color: var(--miss); }
+.badge.miss-b { background: var(--miss-bg); color: var(--miss); }
+button.add { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--accent); font-size: 20px; font-weight: 700; line-height: 1; margin-top: 20px; }
+.addph { margin-top: 14px; }
+.sheet { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: flex; align-items: flex-end; }
+.sheet-card { width: 100%; max-width: 680px; margin: 0 auto; background: var(--surface); border-radius: 18px 18px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 85vh; overflow: auto; }
+.sheet-card .row { margin-bottom: 8px; }
