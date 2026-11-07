@@ -269,23 +269,34 @@ function libraryEntries(cat, station) {
 // ============================================================ library (extract by category)
 function vLibrary(cat = 'missed', station) {
   const q = (S._q || '').toLowerCase();
+  const inst = S._inst || '';
   const stations = [...new Set(S.sectors.map(dest))].sort();
+  const instructors = [...new Set(S.sectors.map(s => s.instructor).filter(Boolean))].sort();
+  const secs = S.sectors.filter(s => !inst || s.instructor === inst);
   let rows;
   if (cat === 'missed') {
-    const all = withHistory().sort(rank).filter(x => !q || x.item.title.toLowerCase().includes(q));
-    rows = all.map(x => `<li><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div><div class="meta"><span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span><span class="miss-n">${x.h.misses}✕</span>${x.h.status === 'retired' ? '<span class="badge retired">off the list</span>' : ''}${strip(x.h)}</div></a></li>`);
+    // misses on flights with this instructor (or all), with counts for that subset
+    const all = withHistory().map(x => {
+      const ev = x.h.events.filter(e => secs.includes(e.sector));
+      return { ...x, n: ev.filter(e => e.ev === 'MISS').length, last: ev.filter(e => e.ev === 'MISS').at(-1)?.sector };
+    }).filter(x => x.n > 0 && (!q || x.item.title.toLowerCase().includes(q))).sort((a, b) => b.n - a.n || a.item.title.localeCompare(b.item.title));
+    rows = all.map(x => `<li><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div><div class="meta"><span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span><span class="miss-n">${x.n}✕${inst ? ' with ' + esc(inst) : ''}</span>${inst && x.h.misses !== x.n ? `<span>${x.h.misses}✕ overall</span>` : ''}${x.h.status === 'retired' ? '<span class="badge retired">off the list</span>' : ''}${strip(x.h)}</div></a></li>`);
   } else {
-    rows = libraryEntries(cat, cat === 'station' ? station : null).filter(e => !q || e.text.toLowerCase().includes(q)).map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${fmtDate(e.sector.date)}</span></div></li>`);
+    rows = libraryEntries(cat, cat === 'station' ? station : null).filter(e => secs.includes(e.sector)).filter(e => !q || e.text.toLowerCase().includes(q)).map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${esc(e.sector.instructor || '')}</span><span>${fmtDate(e.sector.date)}</span></div></li>`);
   }
+  const nSec = secs.length;
   view.innerHTML = h`
     <h1>Library</h1>
     <div class="chips">${Object.keys(CATS).map(c => `<a class="chip ${c === cat ? 'on' : ''}" href="#/library/${c}">${CATS[c]}</a>`).join('')}</div>
     ${cat === 'station' ? `<div class="chips mt">${stations.map(s => `<a class="chip ${s === station ? 'on' : ''}" href="#/library/station/${s}">${s}</a>`).join('')}</div>` : ''}
+    ${instructors.length ? `<div class="chips mt"><button class="chip ${!inst ? 'on' : ''}" data-inst="">All instructors</button>${instructors.map(i => `<button class="chip ${i === inst ? 'on' : ''}" data-inst="${esc(i)}">${esc(i)}</button>`).join('')}</div>` : ''}
     <input id="q" class="mt" placeholder="Search…" value="${esc(S._q || '')}">
-    <p class="muted">${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${cat === 'missed' ? ' · tap one to edit it or see its history' : ''}</p>
-    <ul class="list card">${rows.join('') || '<li class="empty">Nothing here yet.</li>'}</ul>`;
+    <p class="muted">${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${inst ? ` · ${nSec} flight${nSec === 1 ? '' : 's'} with ${esc(inst)}` : ''}${cat === 'missed' ? ' · tap one for its history' : ''}</p>
+    <ul class="list card">${rows.join('') || '<li class="empty">Nothing here.</li>'}</ul>`;
+  view.querySelectorAll('[data-inst]').forEach(b => b.onclick = () => { S._inst = b.dataset.inst; vLibrary(cat, station); });
   document.getElementById('q').oninput = e => { S._q = e.target.value; vLibrary(cat, station); const i = document.getElementById('q'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
 }
+
 // ============================================================ debrief (after the flight)
 function vDebrief(id, stepStr) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
@@ -469,12 +480,15 @@ function vTrends() {
   const top = all.slice().sort(rank).filter(x => x.h.misses > 0).slice(0, 15);
   const byPhase = {}; for (const x of all) byPhase[x.item.phase] = (byPhase[x.item.phase] || 0) + x.h.misses;
   const phases = Object.entries(byPhase).sort((a, b) => b[1] - a[1]).slice(0, 8); const pmax = phases[0]?.[1] || 1;
+  const im = {}; for (const s of secs) { const k = s.instructor || '—'; im[k] = im[k] || { n: 0, m: 0 }; im[k].n++; im[k].m += sectorMisses(s); }
+  const byInst = Object.entries(im).map(([k, v]) => [k, { n: v.n, avg: v.m / v.n }]).sort((a, b) => b[1].avg - a[1].avg); const imax = byInst[0]?.[1].avg || 1;
   view.innerHTML = h`
     <h1>Trends</h1>
     <div class="kpis"><div class="kpi"><b>${secs.length}</b><span>sectors</span></div><div class="kpi"><b>${all.filter(x => x.h.status === 'active').length}</b><span>on recall</span></div><div class="kpi"><b>${all.length - all.filter(x => x.h.status === 'active').length}</b><span>graduated</span></div><div class="kpi"><b>${all.filter(x => x.h.misses >= 2).length}</b><span>repeat misses</span></div></div>
     <h2>Misses per sector</h2><div class="card">${barChart(secs.map(s => 'S' + s.number), misses, v => v)}</div>
     <h2>Recall hit rate</h2><div class="card">${rate.some(r => r !== null) ? barChart(secs.map(s => 'S' + s.number), rate.map(r => r === null ? 0 : Math.round(r * 100)), v => v + '%', 100) : '<p class="empty">Score a recall list to see this.</p>'}</div>
     <h2>Repeat offenders</h2><div class="card heat"><table><tr><th></th>${secs.map(s => `<th class="s">${s.number}</th>`).join('')}</tr>${top.map(x => `<tr><th><a href="#/item/${x.item.id}">${esc(x.item.title)}</a></th>${secs.map(s => { const e = s.number < x.item.createdSector ? null : eventFor(x.item, s); return `<td class="${e === 'MISS' ? 'X' : e === 'HIT' ? 'H' : ''}">${e === 'MISS' ? '✕' : e === 'HIT' ? '✓' : ''}</td>`; }).join('')}</tr>`).join('')}</table><p class="muted">✕ miss · ✓ hit · blank = not logged</p></div>
+    ${byInst.length > 1 ? `<h2>Misses per flight, by instructor</h2><div class="card">${byInst.map(([i, v]) => `<div class="hbar"><span>${esc(i)}</span><div class="track"><div class="fill" style="width:${v.avg / imax * 100}%"></div></div><b>${v.avg.toFixed(1)} <span class="muted">/ ${v.n}</span></b></div>`).join('')}<p class="muted">average misses per flight · number of flights</p></div>` : ''}
     <h2>Misses by phase</h2><div class="card">${phases.map(([p, n]) => `<div class="hbar"><span>${esc(p)}</span><div class="track"><div class="fill" style="width:${n / pmax * 100}%"></div></div><b>${n}</b></div>`).join('')}</div>`;
 }
 function barChart(labels, values, fmt, maxOverride) {
