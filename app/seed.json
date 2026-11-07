@@ -1,5 +1,6 @@
 {
  "version": 1,
+ "seedVersion": 2,
  "settings": {
   "graduateAfter": 2
  },

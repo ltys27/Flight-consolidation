@@ -52,7 +52,7 @@ def main() -> int:
             "conditions": list(s.conditions), "recall": {k: v for k, v in s.focus3_results().items() if v},
             "logs": logs, "emphasis": "\n".join(emphasis), "next": s.next.get("focus3-carry", ""),
         })
-    data = {"version": 1, "settings": {"graduateAfter": 2}, "items": items, "sectors": out_sectors}
+    data = {"version": 1, "seedVersion": 2, "settings": {"graduateAfter": 2}, "items": items, "sectors": out_sectors}
     Path(a.out).write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {a.out}: {len(items)} items, {len(out_sectors)} sectors")
     return 0

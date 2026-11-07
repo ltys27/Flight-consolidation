@@ -93,6 +93,9 @@ function render() {
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const h = (strings, ...vals) => strings.reduce((a, s, i) => a + s + (i < vals.length ? vals[i] : ''), '');
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 1800); }
+function meta(x, extra = '') {
+  return `<div class="meta"><span class="badge ${x.item.type}">${x.item.type}</span><span>${esc(x.item.phase)}</span><span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} in a row</span>` : ''}${strip(x.h, 5)}${extra}</div>`;
+}
 function strip(hist, n = 6) {
   const ev = hist.events.slice(-n);
   return '<span class="strip">' + ev.map(e => `<span class="cell ${e.ev === 'MISS' ? 'X' : e.ev === 'HIT' ? 'H' : ''}" title="S${e.sector.number} ${e.ev || 'not logged'}">${e.ev === 'MISS' ? '✕' : e.ev === 'HIT' ? '✓' : '·'}</span>`).join('') + '</span>';
@@ -103,15 +106,14 @@ function vSectors() {
   const act = activeItems();
   const secs = [...S.sectors].reverse();
   view.innerHTML = h`
-    <h1>Sectors</h1>
-    <a class="btn primary block" href="#/new">+ New sector</a>
-    <div class="card" style="margin-top:12px">
-      <div class="row between"><b>Recall list</b><a href="#/items">${act.length} active</a></div>
-      <ul class="list">${act.slice(0, 3).map(x => `<li><span class="badge focus">Focus</span> <span class="item-title">${esc(x.item.title)}</span> <span class="muted">${x.h.misses}✕</span>${strip(x.h)}</li>`).join('') || '<li class="empty">Nothing on the list. Log a sector or load the seed data under Data.</li>'}</ul>
-    </div>
-    ${secs.length ? '<h2>Logged</h2>' : ''}
-    <ul class="list card">${secs.map(s => { const sc = sectorScored(s); return `<li><a href="#/sector/${s.id}" class="row between" style="color:inherit"><div class="grow"><div class="item-title">S${s.number} ${esc(s.route)} <span class="muted">${esc(s.date)}</span></div><div class="item-sub">${esc(s.instructor || '—')} · ${sectorMisses(s)} missed · ${s.logs.length} logged${sc.scored ? ` · recall ${sc.hits}/${sc.scored}` : ''}</div></div><span class="muted">›</span></a></li>`; }).join('') || '<li class="empty">No sectors yet.</li>'}</ul>`;
+    <div class="row between"><h1>Sectors</h1><a class="btn primary small" href="#/new">+ New</a></div>
+    <section class="card">
+      <div class="row between"><h2 class="m0">Focus 3</h2><a href="#/items" class="muted">${act.length} on recall ›</a></div>
+      <ol class="focus">${act.slice(0, 3).map(x => `<li><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div>${x.item.cue ? `<div class="cue">when ${esc(x.item.cue)}</div>` : ''}${meta(x)}</a></li>`).join('') || '<li class="empty">Nothing on the list yet.</li>'}</ol>
+    </section>
+    <ul class="list card sectors">${secs.map(s => { const sc = sectorScored(s); const m = sectorMisses(s); return `<li><a href="#/sector/${s.id}"><div class="row between"><b>S${s.number} · ${esc(s.route.replace('SIN-', ''))}</b><span class="muted">${fmtDate(s.date)}</span></div><div class="meta"><span>${esc(s.instructor || '—')}</span><span class="miss-n">${m}✕</span>${sc.scored ? `<span class="hit-n">${sc.hits}/${sc.scored} recall</span>` : '<span class="todo">not scored</span>'}</div></a></li>`; }).join('') || '<li class="empty">No sectors yet. Tap + New.</li>'}</ul>`;
 }
+const fmtDate = d => { const x = new Date(d + 'T00:00'); return isNaN(x) ? d : x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
 
 // ---------- new / edit sector ----------
 const BASE = 'SIN';
@@ -163,8 +165,7 @@ function vSector(id, tab = 'recall') {
   if (!sec) { location.hash = '#/'; return; }
   const tabs = ['recall', 'log', 'notes', 'export'];
   view.innerHTML = h`
-    <div class="row between"><h1 style="margin:0">S${sec.number} ${esc(sec.route)}</h1><button class="btn small" id="edit">Edit</button></div>
-    <div class="muted">${esc(sec.date)} · ${esc(sec.instructor || 'no instructor')}${sec.conditions.length ? ' · ' + esc(sec.conditions.join(', ')) : ''}</div>
+    <div class="row between"><div><h1 class="m0">S${sec.number} · ${esc(sec.route)}</h1><div class="muted">${fmtDate(sec.date)} · ${esc(sec.instructor || 'no instructor')}${sec.conditions.length ? ' · ' + esc(sec.conditions.join(', ')) : ''}</div></div><button class="btn small" id="edit">Edit</button></div>
     <div class="subtabs">${tabs.map(t => `<button class="${t === tab ? 'on' : ''}" data-t="${t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
     <div id="pane"></div>`;
   view.querySelectorAll('.subtabs button').forEach(b => b.onclick = () => location.hash = `#/sector/${sec.id}/${b.dataset.t}`);
@@ -173,43 +174,50 @@ function vSector(id, tab = 'recall') {
 }
 
 function paneRecall(sec, el) {
-  // items that were on the recall list when this sector happened: active as of the previous sector, plus anything already scored here
-  const prevSectors = S.sectors.filter(s => s.number < sec.number);
-  // compute "active before this sector" by temporarily hiding later sectors
-  const saved = S.sectors; S.sectors = prevSectors;
+  // items that were on the recall list before this sector, plus anything already scored here
+  const saved = S.sectors; S.sectors = S.sectors.filter(s => s.number < sec.number);
   let list = activeItems().filter(x => x.item.createdSector <= sec.number);
   S.sectors = saved;
   for (const id of Object.keys(sec.recall)) if (!list.some(x => x.item.id === id) && S.items[id]) list.push({ item: S.items[id], h: history(S.items[id]) });
-  const focus = new Set(list.slice(0, 3).map(x => x.item.id));
+  const focus = list.slice(0, 3), rest = list.slice(3);
+  const scored = Object.keys(sec.recall).length;
+  const showRest = el.dataset.showRest === '1';
+  const seg = id => `<div class="seg" data-id="${id}"><button class="${sec.recall[id] === 'HIT' ? 'on hit' : ''}" data-r="HIT">✓ Hit</button><button class="${sec.recall[id] === 'MISS' ? 'on miss' : ''}" data-r="MISS">✕ Miss</button><button class="${!sec.recall[id] ? 'on' : ''}" data-r="">n/a</button></div>`;
+  const row = x => `<li class="rrow"><div class="t">${esc(x.item.title)}</div>${x.item.cue ? `<div class="cue">when ${esc(x.item.cue)}</div>` : ''}${meta(x)}${seg(x.item.id)}</li>`;
   el.innerHTML = h`
-    <p class="muted">Say the Focus 3 from memory before you look. Score every item: HIT = did it without prompting, MISS = missed or prompted. Leave blank if it did not apply. ${S.settings.graduateAfter} HITs in a row and it leaves the list.</p>
-    <ul class="list card">${list.map(x => `<li class="score"><div class="grow"><div class="item-title">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span> ' : ''}${esc(x.item.title)}</div><div class="item-sub"><span class="badge ${x.item.type}">${x.item.type}</span> ${esc(x.item.phase)}${x.item.cue ? ' · when ' + esc(x.item.cue) : ''} · ${x.h.misses}✕ · streak ${x.h.streak}${strip(x.h, 5)}</div></div>
-      <button class="btn small hit ${sec.recall[x.item.id] === 'HIT' ? 'on' : ''}" data-id="${x.item.id}" data-r="HIT">✓ HIT</button>
-      <button class="btn small miss ${sec.recall[x.item.id] === 'MISS' ? 'on' : ''}" data-id="${x.item.id}" data-r="MISS">✕ MISS</button></li>`).join('') || '<li class="empty">Recall list was empty before this sector.</li>'}</ul>
-    <div class="row"><button class="btn grow small" id="resthit">Mark the unscored rest HIT</button><button class="btn grow small" id="clear">Clear scores</button></div>
-    <a class="btn block" href="#/sector/${sec.id}/log" style="margin-top:10px">Next: log what happened →</a>`;
-  document.getElementById('resthit').onclick = () => { for (const x of list) if (!sec.recall[x.item.id]) sec.recall[x.item.id] = 'HIT'; save(); paneRecall(sec, el); };
-  document.getElementById('clear').onclick = () => { if (confirm('Clear all recall scores for this sector?')) { sec.recall = {}; save(); paneRecall(sec, el); } };
-  el.querySelectorAll('button[data-r]').forEach(b => b.onclick = () => {
-    const { id, r } = b.dataset;
-    sec.recall[id] = sec.recall[id] === r ? undefined : r;
-    if (!sec.recall[id]) delete sec.recall[id];
-    save(); paneRecall(sec, el);
+    <p class="hint">${scored ? `${scored} of ${list.length} scored.` : 'Say the Focus 3 from memory first, then score.'} One tap each: <b>Hit</b> = did it unprompted · <b>Miss</b> = missed or prompted · <b>n/a</b> = didn't apply. ${S.settings.graduateAfter} hits in a row graduates an item.</p>
+    <h2>Focus 3</h2>
+    <ol class="list card focus">${focus.map(row).join('') || '<li class="empty">Recall list was empty before this sector.</li>'}</ol>
+    ${rest.length ? `<div class="row between"><h2 class="m0">Rest of the list <span class="muted">(${rest.length})</span></h2><button class="btn small" id="toggle">${showRest ? 'Hide' : 'Show'}</button></div>
+    ${showRest ? `<ul class="list card">${rest.map(row).join('')}</ul>` : `<p class="muted">${rest.filter(x => sec.recall[x.item.id]).length} scored. Hidden items stay n/a.</p>`}
+    <div class="row"><button class="btn grow small" id="resthit">Mark unscored as Hit</button><button class="btn grow small" id="clear">Clear all</button></div>` : ''}
+    <a class="btn primary block mt" href="#/sector/${sec.id}/log">Next: log what happened →</a>`;
+  el.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+    const id = b.parentElement.dataset.id, r = b.dataset.r;
+    if (r) sec.recall[id] = r; else delete sec.recall[id];
+    if (r === 'MISS' && S.items[id]?.manualRetiredAt) delete S.items[id].manualRetiredAt;
+    save();
+    b.parentElement.querySelectorAll('button').forEach(x => x.className = x === b ? 'on ' + (r === 'HIT' ? 'hit' : r === 'MISS' ? 'miss' : '') : '');
+    const n = Object.keys(sec.recall).length; el.querySelector('.hint').firstChild.textContent = `${n} of ${list.length} scored. `;
   });
+  const tg = el.querySelector('#toggle'); if (tg) tg.onclick = () => { el.dataset.showRest = showRest ? '0' : '1'; paneRecall(sec, el); };
+  const rh = el.querySelector('#resthit'); if (rh) rh.onclick = () => { for (const x of list) if (!sec.recall[x.item.id]) sec.recall[x.item.id] = 'HIT'; save(); paneRecall(sec, el); };
+  const cl = el.querySelector('#clear'); if (cl) cl.onclick = () => { if (confirm('Clear every score for this sector?')) { sec.recall = {}; save(); paneRecall(sec, el); } };
 }
 
 function paneLog(sec, el) {
   const draw = () => {
     el.innerHTML = h`
       <form id="lf" class="card stack">
-        <div class="chips" id="types">${Object.entries(TYPES).map(([k, v]) => `<button type="button" class="chip ${k === 'A' ? 'on' : ''}" data-t="${k}"><span class="badge ${k}">${k}</span>${v}</button>`).join('')}<button type="button" class="chip" data-t="dest">✈ destination fact</button></div>
+        <textarea name="text" placeholder="What happened, in your words. Triggers: when … -> …" rows="2" required></textarea>
+        <div class="chips" id="types">${Object.entries(TYPES).map(([k, v]) => `<button type="button" class="chip ${k === 'A' ? 'on' : ''}" data-t="${k}"><span class="badge ${k}">${k}</span>${v}</button>`).join('')}<button type="button" class="chip" data-t="dest">✈ destination</button></div>
         <div class="row"><select name="phase">${PHASES.map(p => `<option>${p}</option>`).join('')}</select><button type="button" class="chip" id="good" title="done well this sector">✓ did well</button></div>
-        <textarea name="text" placeholder="what happened, in your words (B: when … -> …)" rows="2" required></textarea>
         <div id="sug"></div>
         <input type="hidden" name="itemId">
         <button class="btn primary block" type="submit">Add</button>
       </form>
-      <ul class="list card">${sec.logs.map(l => `<li class="row between"><div class="grow"><div>${l.dest ? '<span class="badge">dest</span>' : `<span class="badge ${l.type}">${l.type}</span>`} ${l.good ? '<span class="badge retired">✓ good</span> ' : ''}${esc(l.text)}</div><div class="item-sub">${esc(l.phase)}${l.itemId ? ' · tracked as <a href="#/item/' + l.itemId + '">' + esc(S.items[l.itemId]?.title || l.itemId) + '</a>' : ''}</div></div><button class="btn small danger" data-del="${l.id}">✕</button></li>`).join('') || '<li class="empty">Nothing logged yet.</li>'}</ul>`;
+      ${sec.logs.length ? `<h2>Logged <span class="muted">(${sec.logs.length})</span></h2>` : ''}
+      <ul class="list card">${sec.logs.slice().reverse().map(l => `<li class="lrow"><div class="grow"><div class="t">${esc(l.text)}</div><div class="meta">${l.dest ? '<span class="badge">dest</span>' : `<span class="badge ${l.type}">${l.type}</span>`}<span>${esc(l.phase)}</span>${l.good ? '<span class="hit-n">✓ did well</span>' : ''}${l.itemId ? `<a href="#/item/${l.itemId}">↩ ${esc(S.items[l.itemId]?.title || l.itemId)}</a>` : ''}</div></div><button class="x" data-del="${l.id}" aria-label="remove">✕</button></li>`).join('') || '<li class="empty">Nothing logged yet.</li>'}</ul>`;
     const f = document.getElementById('lf');
     let type = 'A', good = false, linked = null;
     const types = f.querySelectorAll('#types .chip');
@@ -291,8 +299,8 @@ function vItems(filter = 'active') {
   view.innerHTML = h`
     <h1>Recall list</h1>
     <div class="subtabs"><button class="${filter === 'active' ? 'on' : ''}" data-f="active">Active (${all.filter(x => x.h.status === 'active').length})</button><button class="${filter === 'retired' ? 'on' : ''}" data-f="retired">Graduated (${all.filter(x => x.h.status === 'retired').length})</button></div>
-    <p class="muted">${filter === 'active' ? `Sorted by misses. Top three are the Focus 3. An item graduates after ${S.settings.graduateAfter} consecutive HITs and comes back the moment you miss it again.` : 'Graduated items are off the recall list. They return automatically on a miss, or pull one back by hand.'}</p>
-    <ul class="list card">${list.map((x, i) => `<li><a href="#/item/${x.item.id}" style="color:inherit"><div class="item-title">${filter === 'active' && i < 3 ? '<span class="badge focus">Focus</span> ' : ''}${esc(x.item.title)}</div><div class="item-sub"><span class="badge ${x.item.type}">${x.item.type}</span> ${esc(x.item.phase)}${x.item.cue ? ' · when ' + esc(x.item.cue) : ''} · ${x.h.misses}✕ · streak ${x.h.streak}${strip(x.h)}</div></a></li>`).join('') || '<li class="empty">Empty.</li>'}</ul>`;
+    <p class="hint">${filter === 'active' ? `Sorted by misses; the top three are the Focus 3. ${S.settings.graduateAfter} hits in a row graduates an item; a miss brings it back.` : 'Off the recall list. A miss brings an item back, or pull it back by hand.'}</p>
+    <ul class="list card ${filter === 'active' ? 'focus' : ''}">${list.map((x, i) => `<li class="${filter === 'active' && i < 3 ? 'is-focus' : ''}"><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div>${x.item.cue ? `<div class="cue">when ${esc(x.item.cue)}</div>` : ''}${meta(x)}</a></li>`).join('') || '<li class="empty">Empty.</li>'}</ul>`;
   view.querySelectorAll('.subtabs button').forEach(b => b.onclick = () => location.hash = `#/items/${b.dataset.f}`);
 }
 
@@ -303,7 +311,7 @@ function vItem(id) {
   view.innerHTML = h`
     <a href="#/items" class="muted">‹ Recall list</a>
     <h1>${esc(it.title)}</h1>
-    <div class="row"><span class="badge ${it.type}">${it.type} ${TYPES[it.type]}</span><span class="badge ${hh.status === 'retired' ? 'retired' : ''}">${hh.status}</span><span class="muted">${hh.misses}✕ · streak ${hh.streak}</span></div>
+    <div class="meta"><span class="badge ${it.type}">${it.type} ${TYPES[it.type]}</span><span class="badge ${hh.status === 'retired' ? 'retired' : 'focus'}">${hh.status === 'retired' ? 'graduated' : 'on recall'}</span><span class="miss-n">${hh.misses}✕</span>${hh.streak ? `<span class="streak">${hh.streak} in a row</span>` : ''}${strip(hh, 8)}</div>
     <div class="card stack" style="margin-top:12px">
       <label class="f">Title<input id="title" value="${esc(it.title)}"></label>
       <label class="f">Cue — "when <i>cue</i> → <i>action</i>"<input id="cue" value="${esc(it.cue || '')}" placeholder="e.g. hand on the EXT LT panel → white lights first"></label>
@@ -315,7 +323,7 @@ function vItem(id) {
     <ul class="list card">${hh.events.slice().reverse().map(e => `<li class="row between"><span>S${e.sector.number} ${esc(e.sector.route)} <span class="muted">${esc(e.sector.date)}</span></span><span class="cell ${e.ev === 'MISS' ? 'X' : e.ev === 'HIT' ? 'H' : ''}" style="width:auto;padding:0 8px">${e.ev || 'not logged'}</span></li>`).join('') || '<li class="empty">No sectors since this item was created.</li>'}</ul>
     <h2>Logged as</h2>
     <ul class="list card">${S.sectors.flatMap(s => s.logs.filter(l => l.itemId === id).map(l => `<li><span class="muted">S${s.number}</span> ${l.good ? '✓ ' : ''}${esc(l.text)}</li>`)).join('') || '<li class="empty">—</li>'}</ul>`;
-  document.getElementById('sv').onclick = () => { it.title = title.value.trim() || it.title; it.cue = cue.value.trim(); it.type = type.value; it.phase = phase.value; save(); toast('Saved'); };
+  document.getElementById('sv').onclick = () => { if (title.value.trim() && title.value.trim() !== it.title) it.titleEdited = true; it.title = title.value.trim() || it.title; it.cue = cue.value.trim(); it.type = type.value; it.phase = phase.value; save(); toast('Saved'); };
   const retire = document.getElementById('retire'); if (retire) retire.onclick = () => { it.manualRetiredAt = last + 1; delete it.manualActiveAt; save(); render(); };
   const pull = document.getElementById('pull'); if (pull) pull.onclick = () => { it.manualActiveAt = last; delete it.manualRetiredAt; it._pulled = Date.now(); save(); render(); };
   document.getElementById('del').onclick = () => { if (!confirm('Delete this item and unlink its logs?')) return; for (const s of S.sectors) { delete s.recall[id]; s.logs.forEach(l => { if (l.itemId === id) l.itemId = null; }); } delete S.items[id]; save(); location.hash = '#/items'; };
@@ -383,5 +391,10 @@ function initPWA() {
   const dot = document.getElementById('online-dot');
   const upd = () => dot.classList.toggle('off', !navigator.onLine); upd(); addEventListener('online', upd); addEventListener('offline', upd);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
+  fetch('seed.json').then(r => r.ok ? r.json() : null).then(d => {
+    if (!d || !d.seedVersion || S.seedVersion === d.seedVersion) return;
+    let n = 0; for (const it of Object.values(d.items || {})) { const mine = S.items[it.id]; if (mine && mine.title !== it.title && !mine.titleEdited) { mine.title = it.title; n++; } }
+    S.seedVersion = d.seedVersion; save(); if (n) { render(); toast('Tidied ' + n + ' item titles'); }
+  }).catch(() => {});
   if (!S.sectors.length && !localStorage.getItem(KEY)) fetch('seed.json').then(r => r.ok ? r.json() : null).then(d => { if (d) { S = normalize(d); save(); render(); toast('Loaded seed sectors 1–5'); } }).catch(() => {});
 }
