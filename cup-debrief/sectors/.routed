@@ -1,0 +1,222 @@
+{
+ "06809a0d1917": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "apu-before-turn-in",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "0fd595fbbae4": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "anti-ice-early",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "10d5673a4483": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "fo-delegation",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "210311ab29c1": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "cc-briefing-script",
+  "to": [
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "3257f4b13f24": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "sd-page-default",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "38d32e788695": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "white-lights-first",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "4d02bc43a08d": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "apu-before-turn-in",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "4e59e780ceb8": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "sd-page-default",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "526b294161e0": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "fo-delegation",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "695ed1faba22": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "taxi-in-speed",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "9f77387855e8": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "taxi-in-speed",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "a0347c4ec906": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "white-lights-first",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "aa29a16dd8d7": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "cc-briefing-script",
+  "to": [
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "aaa376a1ad7a": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "anti-ice-early",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "ac0d58fde2dd": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "cjb-gates",
+  "to": [
+   "technique",
+   "cards",
+   "destinations/VOCB"
+  ],
+  "type": "C"
+ },
+ "bec93e887db1": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "isis-ann-lt-lighting",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "c8d291d5be5c": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "cc-briefing-script",
+  "to": [
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "d22c33697030": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "perf-recheck-figure-change",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "d37b2462d012": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "perf-recheck-figure-change",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "d787c563f469": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "takeoff-briefing-content",
+  "to": [
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "ddb5c9ea5171": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "sd-page-default",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "df8a1e8dc124": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "white-lights-first",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "e436cc0d7342": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "takeoff-briefing-content",
+  "to": [
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "f78571362e5e": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "isis-ann-lt-lighting",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ }
+}

@@ -1,0 +1,70 @@
+# Alias map for tracker slugs. First match wins; matching is a case-insensitive
+# substring test on the item text. The slug itself (with - as space) also matches.
+# Add a line whenever two wordings of one item show up as two rows in tracker.md.
+
+white-lights-first:
+  - white lights
+  - white light
+  - whitelights
+sd-page-default:
+  - sd page
+  - ecam sd
+  - system display page
+cc-briefing-script:
+  - cc briefing
+  - cabin crew briefing
+  - cabin briefing
+takeoff-briefing-content:
+  - takeoff brief
+  - take-off brief
+  - take off brief
+  - departure brief
+apu-before-turn-in:
+  - apu before turn
+  - apu on before turn
+  - apu start before turn
+  - apu turn in
+  - apu turn-in
+  - apu not started
+  - apu not on
+  - apu late
+anti-ice-early:
+  - anti-ice early
+  - anti ice early
+  - anti-ice late
+  - anti ice late
+  - eng anti ice
+  - anti-ice
+  - anti ice
+perf-recheck-figure-change:
+  - perf not redone
+  - perf recheck
+  - perf re-check
+  - perf redo
+  - load sheet change
+  - loadsheet change
+  - figure change
+taxi-in-speed:
+  - taxi-in speed
+  - taxi in speed
+  - taxi speed in
+  - fast taxi in
+fo-delegation:
+  - fo delegation
+  - delegate to fo
+  - delegation
+isis-ann-lt-lighting:
+  - isis
+  - ann lt
+  - ann light
+  - annunciator light
+cjb-gates:
+  - cjb gates
+  - cjb gate
+  - coimbatore gate
+seat-belts-sign:
+  - seat belt
+  - seatbelt
+nav-lights:
+  - nav light
+  - nav lights
