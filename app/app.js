@@ -12,7 +12,7 @@ const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 
   'vacate', 'taxi-in', 'parking'];
 const AIRPORTS = { SIN: 'WSSS', DPS: 'WADD', CJB: 'VOCB', PEN: 'WMKP', HAK: 'ZJHK', SRG: 'WARS', HKT: 'VTSP', TRZ: 'VOTR' };
 const CITY = { DPS: 'Denpasar', CJB: 'Coimbatore', PEN: 'Penang', HAK: 'Haikou', SRG: 'Semarang', HKT: 'Phuket', TRZ: 'Tiruchirappalli' };
-const PHASE_LABEL = { preflight: 'Preflight', prelims: 'Prelims', 'cc-briefing': 'CC briefing', 'cockpit-prep': 'Cockpit prep', 'box-setup': 'Box setup', fuel: 'Fuel decision', briefing: 'Takeoff briefing', pushback: 'Pushback onwards', start: 'Start', 'taxi-out': 'Taxi out', taxi: 'Taxi', takeoff: 'Takeoff', climb: 'Climb', cruise: 'Cruise', descent: 'Descent', approach: 'Approach', landing: 'Landing', vacate: 'Vacation', 'taxi-in': 'Taxi in', parking: 'Parking', general: 'Additional technique / info' };
+const PHASE_LABEL = { preflight: 'Preflight', prelims: 'Prelims', 'cc-briefing': 'CC briefing', 'cockpit-prep': 'Cockpit prep', 'box-setup': 'Box setup', fuel: 'Fuel decision', briefing: 'Takeoff briefing', pushback: 'Pushback onwards', start: 'Start', 'taxi-out': 'Taxi out', taxi: 'Taxi', takeoff: 'Takeoff', climb: 'Climb', cruise: 'Cruise', descent: 'Descent', approach: 'Approach', landing: 'Landing', vacate: 'Vacation', 'taxi-in': 'Taxi in', parking: 'Parking', general: 'General' };
 const PHASE_ORDER = ['preflight', 'prelims', 'cc-briefing', 'cockpit-prep', 'box-setup', 'fuel', 'briefing', 'pushback', 'start', 'taxi-out', 'taxi', 'takeoff', 'climb', 'cruise', 'descent', 'approach', 'landing', 'vacate', 'taxi-in', 'parking', 'general'];
 // headings shown on the debrief form (the ones in the sector notes); other phases appear when they hold items
 const NOTE_PHASES = ['preflight', 'prelims', 'cc-briefing', 'cockpit-prep', 'box-setup', 'briefing', 'pushback', 'takeoff', 'climb', 'cruise', 'descent', 'landing', 'vacate', 'parking', 'general'];
@@ -438,7 +438,8 @@ function toMarkdown(sec) {
   const L = ['---', `sector: ${sec.number}`, `route: ${sec.route}`, `date: ${sec.date}`, `instructor: ${sec.instructor}`, ...(sec.safety ? [`safety: ${sec.safety}`] : []),
     `tags: [CUP, Phase2A${sec.instructor ? ', ' + sec.instructor.split(' ')[0] : ''}, ${dest(sec)}]`, `conditions: [${sec.conditions.join(', ')}]`, 'focus3:'];
   for (const id of focus) L.push(`  - item: ${id}`, `    result: ${sec.recall[id] || ''}`);
-  L.push('---');
+  const hits = Object.entries(sec.recall).filter(([k, v]) => v === 'HIT').map(([k]) => k), misses = Object.entries(sec.recall).filter(([k, v]) => v === 'MISS').map(([k]) => k);
+  L.push(`hits: [${hits.join(', ')}]`, `misses: [${misses.join(', ')}]`, '---');
   const line = l => `- ${l.type === 'D' ? '[D] ' : l.type === 'B' ? '[B] ' : l.good ? `[${l.type}+] ` : ''}${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? l.phase + ': ' : ''}${l.text}`;
   const by = cat => sec.logs.filter(l => catOf(l) === cat);
   const extraMiss = Object.entries(sec.recall).filter(([k, v]) => v === 'MISS' && !sec.logs.some(l => l.itemId === k)).map(([k]) => { const it = S.items[k]; return `- ${it && it.phase !== 'general' ? it.phase + ': ' : ''}${it?.title || k}`; });

@@ -337,6 +337,12 @@ def build_tracker(sectors: list[Sector] | None = None) -> tuple[list[TrackerRow]
     rows: dict[str, TrackerRow] = {}
     numbers = [s.number for s in sectors]
     for s in sectors:
+        for slug in (s.meta.get("misses") or []):
+            if slug:
+                rows.setdefault(slug, TrackerRow(slug, "A")).cells[s.number] = "X"
+        for slug in (s.meta.get("hits") or []):
+            if slug and rows.setdefault(slug, TrackerRow(slug, "A")).cells.get(s.number) != "X":
+                rows[slug].cells[s.number] = "✓"
         for slug, res in s.focus3_results().items():
             row = rows.setdefault(slug, TrackerRow(slug, "A"))
             if res == "MISS":
