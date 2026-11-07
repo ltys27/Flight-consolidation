@@ -12,8 +12,10 @@ const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 
   'vacate', 'taxi-in', 'parking'];
 const AIRPORTS = { SIN: 'WSSS', DPS: 'WADD', CJB: 'VOCB', PEN: 'WMKP', HAK: 'ZJHK', SRG: 'WARS', HKT: 'VTSP', TRZ: 'VOTR' };
 const CITY = { DPS: 'Denpasar', CJB: 'Coimbatore', PEN: 'Penang', HAK: 'Haikou', SRG: 'Semarang', HKT: 'Phuket', TRZ: 'Tiruchirappalli' };
-const PHASE_LABEL = { general: 'Other', preflight: 'Preflight', prelims: 'Prelims', 'cockpit-prep': 'Cockpit prep', 'box-setup': 'Box setup', briefing: 'Briefing', 'cc-briefing': 'CC briefing', fuel: 'Fuel', pushback: 'Pushback', start: 'Start', 'taxi-out': 'Taxi out', taxi: 'Taxi', takeoff: 'Takeoff', climb: 'Climb', cruise: 'Cruise', descent: 'Descent', approach: 'Approach', landing: 'Landing', vacate: 'Vacate', 'taxi-in': 'Taxi in', parking: 'Parking' };
-const PHASE_ORDER = ['preflight', 'prelims', 'cockpit-prep', 'box-setup', 'fuel', 'briefing', 'cc-briefing', 'pushback', 'start', 'taxi-out', 'taxi', 'takeoff', 'climb', 'cruise', 'descent', 'approach', 'landing', 'vacate', 'taxi-in', 'parking', 'general'];
+const PHASE_LABEL = { preflight: 'Preflight', prelims: 'Prelims', 'cc-briefing': 'CC briefing', 'cockpit-prep': 'Cockpit prep', 'box-setup': 'Box setup', fuel: 'Fuel decision', briefing: 'Takeoff briefing', pushback: 'Pushback onwards', start: 'Start', 'taxi-out': 'Taxi out', taxi: 'Taxi', takeoff: 'Takeoff', climb: 'Climb', cruise: 'Cruise', descent: 'Descent', approach: 'Approach', landing: 'Landing', vacate: 'Vacation', 'taxi-in': 'Taxi in', parking: 'Parking', general: 'Additional technique / info' };
+const PHASE_ORDER = ['preflight', 'prelims', 'cc-briefing', 'cockpit-prep', 'box-setup', 'fuel', 'briefing', 'pushback', 'start', 'taxi-out', 'taxi', 'takeoff', 'climb', 'cruise', 'descent', 'approach', 'landing', 'vacate', 'taxi-in', 'parking', 'general'];
+// headings shown on the debrief form (the ones in the sector notes); other phases appear when they hold items
+const NOTE_PHASES = ['preflight', 'prelims', 'cc-briefing', 'cockpit-prep', 'box-setup', 'briefing', 'pushback', 'takeoff', 'climb', 'cruise', 'descent', 'landing', 'vacate', 'parking', 'general'];
 function groupByPhase(list) {
   const g = new Map(); for (const ph of PHASE_ORDER) g.set(ph, []);
   for (const x of list) (g.get(PHASES.includes(x.item.phase) ? x.item.phase : 'general') || g.get('general')).push(x);
@@ -179,7 +181,7 @@ function vHome() {
   view.innerHTML = h`
     ${next ? `<section class="hero">
       <div class="muted">Next flight</div>
-      <h1 class="m0">S${next.number} · ${esc(next.route)}</h1>
+      <h1 class="m0">${next.number}. ${esc(next.route)}</h1>
       <div class="muted">${fmtDate(next.date)} · ${esc(next.instructor || 'no instructor')}${next.conditions.length ? ' · ' + esc(next.conditions.join(', ')) : ''}</div>
       <div class="actions"><a class="btn primary big" href="#/prepare/${next.id}">☰ Review</a><a class="btn big" href="#/debrief/${next.id}">✓ Debrief</a></div>
       <a class="muted" href="#/plan/${next.id}">Edit flight</a>
@@ -193,7 +195,7 @@ function vHome() {
       <ol class="focus">${focus.map(x => `<li><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div>${x.item.cue ? `<div class="cue">when ${esc(x.item.cue)}</div>` : ''}${meta(x)}</a></li>`).join('') || '<li class="empty">Nothing on the list yet.</li>'}</ol>
     </section>
     ${past.length ? '<h2>History <span class="muted">swipe left to delete</span></h2>' : ''}
-    <ul class="list card sectors" id="hist">${past.map(s => { const sc = sectorScored(s); return `<li data-id="${s.id}"><a href="#/sector/${s.id}"><div class="row between"><b>S${s.number} · ${esc(dest(s))}</b><span class="muted">${fmtDate(s.date)}</span></div><div class="meta"><span>${esc(s.instructor || '—')}</span><span class="miss-n">${sectorMisses(s)}✕</span>${sc.scored ? `<span class="hit-n">${sc.hits}/${sc.scored} hit</span>` : ''}${!debriefed(s) ? '<span class="todo">not debriefed</span>' : ''}</div></a></li>`; }).join('')}</ul>`;
+    <ul class="list card sectors" id="hist">${past.map(s => { const sc = sectorScored(s); return `<li data-id="${s.id}"><a href="#/sector/${s.id}"><div class="row between"><b>${s.number}. ${esc(s.route)}</b><span class="muted">${fmtDate(s.date)}</span></div><div class="meta"><span>${esc(s.instructor || '—')}</span><span class="miss-n">${sectorMisses(s)}✕</span>${sc.scored ? `<span class="hit-n">${sc.hits}/${sc.scored} hit</span>` : ''}${!debriefed(s) ? '<span class="todo">not debriefed</span>' : ''}</div></a></li>`; }).join('')}</ul>`;
   view.querySelectorAll('#hist li').forEach(li => swipeRow(li, 'Delete', () => deleteSector(li.dataset.id)));
 }
 function deleteSector(id) {
@@ -261,18 +263,21 @@ function vDebrief(id, stepStr) {
   const isMissed = x => sec.recall[x.item.id] === 'MISS' || sec.logs.some(l => l.itemId === x.item.id && !l.good);
 
   if (step === 0) {
-    const newLogs = sec.logs.filter(l => !list.some(x => x.item.id === l.itemId));
+    const inList = new Set(list.map(x => x.item.id));
+    const newLogs = sec.logs.filter(l => !(l.itemId && inList.has(l.itemId)));
+    const phOf = l => l.dest ? 'destination' : (PHASES.includes(l.phase) ? l.phase : 'general');
+    const groups = Object.fromEntries(groupByPhase(list));
+    const shown = PHASE_ORDER.filter(ph => NOTE_PHASES.includes(ph) || groups[ph] || newLogs.some(l => phOf(l) === ph));
     const rowItem = x => `<li class="tap ${isMissed(x) ? 'missed' : ''}" data-id="${x.item.id}"><div class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div><div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${strip(x.h)}</div></div><span class="tick">${isMissed(x) ? '✕' : '✓'}</span></div></li>`;
-    const rowNew = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t">${esc(l.text)}</div><div class="meta">${l.dest ? '<span class="badge">fact</span>' : l.type === 'C' ? '<span class="badge">note</span>' : l.type === 'B' ? '<span class="badge B">if-then</span>' : '<span class="badge miss-b">new miss</span>'}${l.itemId && list.some(x => x.item.id === l.itemId) ? '' : ''}</div></div><span class="tick miss">✕</span></div></li>`;
-    const groups = groupByPhase(list);
-    const newByPhase = ph => newLogs.filter(l => (PHASES.includes(l.phase) ? l.phase : 'general') === ph);
-    const phasesShown = new Set(groups.map(([ph]) => ph));
-    for (const l of newLogs) phasesShown.add(PHASES.includes(l.phase) ? l.phase : 'general');
+    const rowNew = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t ${l.type === 'A' || l.type === 'B' ? 'is-miss' : 'is-note'}">${esc(l.text)}</div>${l.itemId && S.items[l.itemId] && S.items[l.itemId].createdSector !== sec.number ? `<div class="meta"><span>↩ counts as ${esc(S.items[l.itemId].title)}</span></div>` : ''}</div><span class="tick ${l.type === 'C' ? 'note' : 'miss'}">${l.type === 'C' ? 'i' : '✕'}</span></div></li>`;
+    const section = (ph, label, kindDefault) => `<h2>${label}</h2><ul class="list card db" data-ph="${ph}">${(groups[ph] || []).map(rowItem).join('')}${newLogs.filter(l => phOf(l) === ph).map(rowNew).join('')}<li class="addline"><form data-ph="${ph}" data-kind="${kindDefault}"><input placeholder="${kindDefault === 'miss' ? 'Add what you missed…' : kindDefault === 'dest' ? `Add a ${esc(dest(sec))} fact…` : 'Add a tip…'}" autocomplete="off" enterkeyhint="done">${kindDefault === 'miss' ? '<button type="button" class="kind" title="switch to note">✕</button>' : ''}</form><div class="sug"></div></li></ul>`;
     view.innerHTML = head() + h`
-      <h1 class="m0">What did you miss?</h1>
-      <p class="muted">Tap anything you missed or were prompted on. Everything else counts as done. Use <b>+</b> to add a new one under its phase.</p>
-      ${PHASE_ORDER.filter(ph => phasesShown.has(ph)).map(ph => { const xs = groups.find(g => g[0] === ph)?.[1] || []; return `<div class="row between"><h2 class="m0">${PHASE_LABEL[ph]}</h2><button class="add" data-ph="${ph}">+</button></div><ul class="list card db" data-ph="${ph}">${xs.map(rowItem).join('')}${newByPhase(ph).map(rowNew).join('')}</ul>`; }).join('')}
-      <div class="card addph"><button class="btn block" id="addother">+ Add a miss in another phase</button></div>
+      <h1 class="m0">${sec.number}. ${esc(sec.route)} <span class="muted">${fmtDate(sec.date)}</span></h1>
+      <div class="muted">Instructor: ${esc(sec.instructor || '—')}${sec.conditions.length ? ' · ' + esc(sec.conditions.join(', ')) : ''}</div>
+      <p class="hint">Tap a line you missed again. Type new ones under the phase, Enter adds. The ✕ beside the box toggles to <b>i</b> for a tip that is not a miss. Finish counts everything untapped as done.</p>
+      ${shown.filter(ph => ph !== 'general').map(ph => section(ph, PHASE_LABEL[ph], 'miss')).join('')}
+      ${section('general', PHASE_LABEL.general, 'note')}
+      ${section('destination', `Destination specific · ${esc(dest(sec))}`, 'dest')}
       <div class="actions"><button class="btn primary big grow" id="finish">Finish debrief ›</button></div>`;
     view.querySelectorAll('li.tap').forEach(li => li.onclick = () => {
       const iid = li.dataset.id; const on = sec.recall[iid] === 'MISS';
@@ -280,12 +285,30 @@ function vDebrief(id, stepStr) {
       save(); li.classList.toggle('missed', !on); li.querySelector('.tick').textContent = on ? '✓' : '✕';
     });
     view.querySelectorAll('li.newlog').forEach(li => swipeRow(li, 'Delete', () => {
-      const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1);
-      if (l.itemId && S.items[l.itemId]?.createdSector === sec.number && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { var removed = S.items[l.itemId]; delete S.items[l.itemId]; }
+      const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1); let removed = null;
+      if (l.itemId && S.items[l.itemId]?.createdSector === sec.number && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { removed = S.items[l.itemId]; delete S.items[l.itemId]; }
       save(); vDebrief(id, '0'); toast('Deleted', () => { sec.logs.splice(i, 0, l); if (removed) S.items[removed.id] = removed; save(); });
     }));
-    view.querySelectorAll('button.add').forEach(b => b.onclick = () => composer(sec, b.dataset.ph));
-    document.getElementById('addother').onclick = () => composer(sec, null);
+    view.querySelectorAll('li.addline form').forEach(f => {
+      const inp = f.querySelector('input'), kindBtn = f.querySelector('.kind'), sug = f.parentElement.querySelector('.sug'); let kind = f.dataset.kind, linked = null;
+      if (kindBtn) kindBtn.onclick = () => { kind = kind === 'miss' ? 'note' : 'miss'; kindBtn.textContent = kind === 'miss' ? '✕' : 'i'; kindBtn.classList.toggle('note', kind === 'note'); inp.placeholder = kind === 'miss' ? 'Add what you missed…' : 'Add a tip…'; };
+      inp.oninput = () => {
+        linked = null; const q = inp.value.trim().toLowerCase(); if (q.length < 3 || kind !== 'miss') { sug.innerHTML = ''; return; }
+        const words = q.split(/\s+/).filter(w => w.length > 2);
+        const hits = Object.values(S.items).filter(i => !inList.has(i.id) || true).map(i => ({ i, n: words.filter(w => i.title.toLowerCase().includes(w)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 2);
+        sug.innerHTML = hits.length ? `<div class="suggest">${hits.map(x => `<button type="button" data-id="${x.i.id}">↩ Same as: <b>${esc(x.i.title)}</b></button>`).join('')}</div>` : '';
+        sug.querySelectorAll('button').forEach(b => b.onclick = () => { linked = b.dataset.id; sug.innerHTML = `<div class="linked">↩ Counts as <b>${esc(S.items[linked].title)}</b><button type="button" class="x">×</button></div>`; sug.querySelector('.x').onclick = () => { linked = null; sug.innerHTML = ''; }; });
+      };
+      f.onsubmit = e => {
+        e.preventDefault(); const text = inp.value.trim(); if (!text) return;
+        const ph = f.dataset.ph; const isDest = ph === 'destination';
+        const log = { id: uid(), itemId: linked, type: kind === 'miss' ? 'A' : 'C', phase: isDest ? 'general' : ph, text, good: false, dest: isDest };
+        if (linked) { if (inList.has(linked)) sec.recall[linked] = 'MISS'; if (S.items[linked]?.manualRetiredAt) delete S.items[linked].manualRetiredAt; }
+        else if (kind === 'miss') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
+        sec.logs.push(log); save(); const y = window.scrollY; vDebrief(id, '0'); window.scrollTo(0, y);
+        const again = view.querySelector(`li.addline form[data-ph="${ph}"] input`); if (again) again.focus();
+      };
+    });
     document.getElementById('finish').onclick = () => {
       for (const x of list) if (!isMissed(x)) sec.recall[x.item.id] = 'HIT'; else if (sec.recall[x.item.id] !== 'MISS') delete sec.recall[x.item.id];
       sec.done = true; save(); location.hash = `#/debrief/${sec.id}/1`;
@@ -305,56 +328,27 @@ function vDebrief(id, stepStr) {
   document.getElementById('emph').onchange = e => { sec.emphasis = e.target.value; save(); };
 }
 
-/** Bottom-sheet composer: one line, one phase, optional kind. */
-function composer(sec, phase) {
-  const sheet = document.createElement('div'); sheet.className = 'sheet';
-  sheet.innerHTML = h`<div class="sheet-card">
-    <div class="row between"><b>Add${phase ? ' · ' + PHASE_LABEL[phase] : ''}</b><button class="x" id="close">✕</button></div>
-    <form id="cf" class="stack">
-      <textarea name="text" rows="2" placeholder="What did you miss? In your words." required></textarea>
-      <div id="sug"></div>
-      ${phase ? '' : `<select name="phase">${PHASE_ORDER.map(p => `<option value="${p}">${PHASE_LABEL[p]}</option>`).join('')}</select>`}
-      <div class="chips"><button type="button" class="chip on" data-k="miss">missed step</button><button type="button" class="chip" data-k="ifthen">if-then</button><button type="button" class="chip" data-k="note">just a note</button><button type="button" class="chip" data-k="dest">${esc(dest(sec))} fact</button></div>
-      <button class="btn primary big block" type="submit">Add</button>
-    </form></div>`;
-  document.body.appendChild(sheet);
-  const f = sheet.querySelector('#cf'); const ta = f.text; let kind = 'miss', linked = null;
-  const close = () => sheet.remove();
-  sheet.querySelector('#close').onclick = close; sheet.onclick = e => { if (e.target === sheet) close(); };
-  f.querySelectorAll('.chip').forEach(b => b.onclick = () => { f.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); b.classList.add('on'); kind = b.dataset.k; });
-  const sug = f.querySelector('#sug');
-  ta.oninput = () => {
-    linked = null; const q = ta.value.trim().toLowerCase(); if (q.length < 3) { sug.innerHTML = ''; return; }
-    const words = q.split(/\s+/).filter(w => w.length > 2);
-    const hits = Object.values(S.items).map(i => ({ i, n: words.filter(w => i.title.toLowerCase().includes(w)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 3);
-    sug.innerHTML = hits.length ? `<div class="suggest">${hits.map(x => `<button type="button" data-id="${x.i.id}">↩ Already on the list: <b>${esc(x.i.title)}</b></button>`).join('')}</div>` : '';
-    sug.querySelectorAll('button').forEach(b => b.onclick = () => { linked = b.dataset.id; sug.innerHTML = `<div class="linked">↩ Counts as <b>${esc(S.items[linked].title)}</b><button type="button" id="unlink">×</button></div>`; sug.querySelector('#unlink').onclick = () => { linked = null; sug.innerHTML = ''; }; });
-  };
-  setTimeout(() => ta.focus(), 50);
-  f.onsubmit = e => {
-    e.preventDefault(); const text = ta.value.trim(); if (!text) return;
-    const ph = phase || f.phase.value;
-    const log = { id: uid(), itemId: linked, type: kind === 'ifthen' ? 'B' : kind === 'miss' ? 'A' : 'C', phase: ph, text, good: false, dest: kind === 'dest' };
-    if (linked) { sec.recall[linked] = 'MISS'; if (S.items[linked]?.manualRetiredAt) delete S.items[linked].manualRetiredAt; }
-    else if (kind === 'miss' || kind === 'ifthen') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: log.type, phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
-    sec.logs.push(log); save(); close(); render(); toast(linked ? 'Marked as missed' : kind === 'miss' || kind === 'ifthen' ? 'Added to the list' : 'Noted');
-  };
-}
-
 // ============================================================ sector detail (read-only summary + export)
 function vSector(id) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
-  const md = toMarkdown(sec); const sc = sectorScored(sec);
-  const list = listFor(sec);
+  const md = toMarkdown(sec); const list = listFor(sec);
+  const missedItems = list.filter(x => sec.recall[x.item.id] === 'MISS' || sec.logs.some(l => l.itemId === x.item.id && !l.good));
+  const inList = new Set(list.map(x => x.item.id));
+  const newLogs = sec.logs.filter(l => !(l.itemId && inList.has(l.itemId)));
+  const phOf = l => l.dest ? 'destination' : (PHASES.includes(l.phase) ? l.phase : 'general');
+  const lines = {};
+  for (const x of missedItems) (lines[x.item.phase] ||= []).push(`<li class="ln miss">✕ ${esc(x.item.title)} <span class="muted">again · ${x.h.misses + 1}✕</span></li>`);
+  for (const l of newLogs) (lines[phOf(l)] ||= []).push(`<li class="ln ${l.type === 'C' ? 'note' : 'miss'}">${l.type === 'C' ? '' : '✕ '}${esc(l.text)}</li>`);
+  const order = [...PHASE_ORDER, 'destination'];
+  const tags = ['CUP', 'Phase2A', sec.instructor ? sec.instructor.split(' ')[0] : null, dest(sec)].filter(Boolean);
   view.innerHTML = h`
     <a href="#/" class="back">‹ Home</a>
-    <div class="row between"><div><h1 class="m0">S${sec.number} · ${esc(sec.route)}</h1><div class="muted">${fmtDate(sec.date)} · ${esc(sec.instructor || '—')}</div></div><a class="btn small" href="#/plan/${sec.id}">Edit</a></div>
-    <div class="actions"><a class="btn big grow" href="#/prepare/${sec.id}">☰ Review</a><a class="btn primary big grow" href="#/debrief/${sec.id}">${debriefed(sec) ? 'Reopen debrief' : '✓ Debrief'}</a></div>
-    <h2>Recall <span class="muted">${sc.hits}/${sc.scored} hit</span></h2>
-    <ul class="list card">${list.filter(x => sec.recall[x.item.id]).map(x => `<li class="row between"><span class="t">${esc(x.item.title)}</span><span class="cell ${sec.recall[x.item.id] === 'HIT' ? 'H' : 'X'} wide">${sec.recall[x.item.id]}</span></li>`).join('') || '<li class="empty">Not scored.</li>'}</ul>
-    <h2>Logged <span class="muted">${sec.logs.length}</span></h2>
-    <ul class="list card">${sec.logs.map(l => `<li><div class="t">${esc(l.text)}</div><div class="meta">${l.dest ? '<span class="badge">dest</span>' : `<span class="badge ${l.type}">${l.type}</span>`}<span>${esc(l.phase)}</span>${l.good ? '<span class="hit-n">✓</span>' : ''}</div></li>`).join('') || '<li class="empty">Nothing logged.</li>'}</ul>
-    ${sec.emphasis ? `<h2>Instructor emphasis</h2><div class="card">${esc(sec.emphasis).replace(/\n/g, '<br>')}</div>` : ''}
+    <div class="row between"><h1 class="m0">${sec.number}. ${esc(sec.route)} <span class="muted">${esc(sec.date)}</span></h1><a class="btn small" href="#/plan/${sec.id}">Edit</a></div>
+    <div class="note-head">Instructor: ${esc(sec.instructor || '—')}<br>Tags: ${tags.map(x => '#' + esc(x)).join(' ')}${sec.conditions.length ? `<br>Conditions: ${esc(sec.conditions.join(', '))}` : ''}</div>
+    <div class="actions"><a class="btn big grow" href="#/prepare/${sec.id}">☰ Review</a><a class="btn primary big grow" href="#/debrief/${sec.id}/0">${debriefed(sec) ? '✎ Edit debrief' : '✓ Debrief'}</a></div>
+    ${debriefed(sec) ? `<div class="meta mt"><span class="miss-n">${sectorMisses(sec)}✕ missed</span><span class="hit-n">${sectorScored(sec).hits} done clean</span></div>` : '<p class="muted mt">Not debriefed yet.</p>'}
+    <div class="note">${order.filter(ph => lines[ph]).map(ph => `<h2>${ph === 'destination' ? `Destination specific · ${esc(dest(sec))}` : PHASE_LABEL[ph]}</h2><ul class="lines">${lines[ph].join('')}</ul>`).join('') || (debriefed(sec) ? '<p class="muted">Clean sector, nothing missed.</p>' : '')}
+    ${sec.emphasis ? `<h2>Instructor emphasis</h2><ul class="lines">${sec.emphasis.split('\n').filter(Boolean).map(x => `<li class="ln">${esc(x)}</li>`).join('')}</ul>` : ''}</div>
     <h2>Markdown <span class="muted">for cup-debrief/sectors/</span></h2>
     <div class="actions"><button class="btn grow" id="copy">Copy</button><button class="btn grow" id="share">Share</button><button class="btn grow" id="dl">Download</button></div>
     <pre class="md">${esc(md)}</pre>`;
@@ -371,7 +365,7 @@ function toMarkdown(sec) {
   L.push('---');
   const line = l => `- ${l.type === 'D' ? '[D] ' : l.good ? `[${l.type}+] ` : ''}${l.phase && l.phase !== 'general' ? l.phase + ': ' : ''}${l.text}`;
   const by = t => sec.logs.filter(l => !l.dest && t.includes(l.type));
-  const extraMiss = Object.entries(sec.recall).filter(([k, v]) => v === 'MISS' && !focus.includes(k) && !sec.logs.some(l => l.itemId === k)).map(([k]) => `- ${S.items[k]?.title || k}`);
+  const extraMiss = Object.entries(sec.recall).filter(([k, v]) => v === 'MISS' && !sec.logs.some(l => l.itemId === k)).map(([k]) => { const it = S.items[k]; return `- ${it && it.phase !== 'general' ? it.phase + ': ' : ''}${it?.title || k}`; });
   L.push('## Missed', ...by('AD').map(line), ...extraMiss, '', '## Triggers', ...by('B').map(line), '', '## Knowledge', ...by('C').map(line), '',
     '## Destination', ...sec.logs.filter(l => l.dest).map(l => `- ${l.text}`), '', '## Phase notes', '', '## Instructor emphasis',
     ...sec.emphasis.split('\n').filter(Boolean).map(x => `- ${x}`), '', '## Next', `focus3-carry: ${sec.next || ''}`, '');

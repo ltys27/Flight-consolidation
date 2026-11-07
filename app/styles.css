@@ -174,3 +174,17 @@ button.add { width: 34px; height: 34px; border-radius: 50%; border: 1px solid va
 .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: flex; align-items: flex-end; }
 .sheet-card { width: 100%; max-width: 680px; margin: 0 auto; background: var(--surface); border-radius: 18px 18px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 85vh; overflow: auto; }
 .sheet-card .row { margin-bottom: 8px; }
+
+/* ---- v6: note-shaped debrief and sector page ---- */
+.note-head { font-size: 14px; color: var(--ink-2); line-height: 1.5; margin-top: 4px; }
+.note h2 { margin-top: 18px; } .lines { list-style: none; padding: 0; margin: 0; }
+.lines .ln { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 15.5px; line-height: 1.35; } .lines .ln:last-child { border-bottom: 0; }
+.ln.miss { color: var(--ink); } .ln.note { color: var(--ink-2); padding-left: 14px; position: relative; } .ln.note::before { content: '–'; position: absolute; left: 0; color: var(--ink-3); }
+.t.is-note { font-weight: 500; color: var(--ink-2); }
+.tick.note { background: var(--surface-2); color: var(--ink-2); font-style: italic; font-family: Georgia, serif; }
+li.addline { padding: 6px 0 8px; } li.addline form { display: flex; gap: 6px; align-items: center; }
+li.addline input { min-height: 40px; padding: 8px 10px; background: transparent; border: 1px dashed var(--border); font-size: 15px; }
+li.addline input:focus { background: var(--surface-2); border-style: solid; outline: none; }
+li.addline .kind { flex: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); background: var(--miss-bg); color: var(--miss); font-weight: 800; font-size: 16px; }
+li.addline .kind.note { background: var(--surface-2); color: var(--ink-2); font-style: italic; font-family: Georgia, serif; }
+.db h2 { margin-bottom: 6px; }
