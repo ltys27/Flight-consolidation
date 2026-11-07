@@ -5,21 +5,23 @@ backend; everything is stored in the browser (localStorage) and can be exported.
 
 ## What it does
 
-- **Sectors**: create a sector (number, destination from SIN, date, instructor from a dropdown of previous ones, conditions), then
-  **Recall** → **Log** → **Notes** → **Export**.
-- **Recall**: every item you have ever missed, sorted by miss count, top three badged
-  *Focus*. Score each one HIT or MISS after the flight. An item **graduates** off the
-  list after N consecutive HITs (N in Data, default 2) and is **pulled back** the
-  moment it is missed again, either by a MISS score or by logging it as a repeat.
-  Blank is not a hit. You can also graduate or pull back by hand on the item page.
-- **Log**: one line per thing, typed A habit / B trigger / C knowledge / D briefing or
-  a destination fact. As you type, matching existing items are suggested so a repeat
-  is counted against the same item instead of creating a new row. "did well" logs a ✓.
-- **Trends**: misses per sector, recall hit rate, the repeat-offender heatmap
-  (item × sector), misses by phase.
-- **Export**: the sector as markdown in the `cup-debrief/templates/sector.md` format.
-  Copy, share or download it into `cup-debrief/sectors/` and run `route.py` to feed
-  the banks, cards and pre-flight generator. Data → export JSON for a full backup.
+Two flows, one per moment:
+
+- **Prepare** (night before / at the gate): a card deck. Cover card tells you to say
+  the Focus 3 aloud; each Focus card is hidden until you tap **Reveal**; then the
+  if-thens for this destination and its conditions, the destination facts you logged
+  on earlier visits, and a final "at the gate" card with only the three items.
+- **Debrief** (after the flight): a four-step wizard. 1 Swipe each Focus card right
+  for Hit, left for Miss (or use the buttons). 2 Tap anything else from the list you
+  missed; untouched items are not counted as hits unless you tick the box. 3 Log what
+  happened one line at a time; matching items are suggested so a repeat counts against
+  the same item; swipe left to delete, with undo. 4 Summary, instructor emphasis,
+  markdown export.
+
+Recall rule: an item **graduates** off the list after N consecutive Hits (N in Data,
+default 2) and is **pulled back** the moment it is missed again. Swipe left on the
+Recall tab to graduate or pull back by hand. Trends: misses per sector, recall hit
+rate, item × sector heatmap, misses by phase.
 
 ## Install on the phone
 
