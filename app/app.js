@@ -290,47 +290,53 @@ function vLibrary(cat = 'missed', station) {
 function vDebrief(id, stepStr) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
   const list = listFor(sec); const focus = new Set(list.slice(0, 3).map(x => x.item.id));
-  const step = stepStr === '1' ? 1 : 0;
-  const head = () => h`<div class="row between"><a href="#/" class="back">‹ Home</a><span class="muted">S${sec.number} · ${esc(sec.route)}</span></div>`;
-  const isMissed = x => sec.recall[x.item.id] === 'MISS' || sec.logs.some(l => l.itemId === x.item.id && !l.good);
+  const step = Math.min(2, Math.max(0, +stepStr || 0));
+  const names = ['Check the list', 'Log', 'Done'];
+  const head = () => h`<div class="row between"><a href="#/" class="back">‹ Home</a><span class="muted">${sec.number}. ${esc(sec.route)}</span></div>
+    <div class="steps">${names.map((n, i) => `<span class="${i === step ? 'on' : i < step ? 'done' : ''}">${i + 1}<em>${n}</em></span>`).join('')}</div>`;
+  const setScore = (iid, r) => { if (r) sec.recall[iid] = r; else delete sec.recall[iid]; if (r === 'MISS' && S.items[iid]?.manualRetiredAt) delete S.items[iid].manualRetiredAt; save(); };
 
+  // ---- step 0: every item on the list gets an explicit answer ----
   if (step === 0) {
+    const answered = list.filter(x => sec.recall[x.item.id]).length;
+    const row = x => { const r = sec.recall[x.item.id] || ''; return `<li class="chk ${r}"><div class="t">${esc(x.item.title)}</div><div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div><div class="seg2" data-id="${x.item.id}"><button class="${r === 'MISS' ? 'on miss' : ''}" data-r="MISS">✕ Missed again</button><button class="${r === 'HIT' ? 'on hit' : ''}" data-r="HIT">✓ Didn't miss</button></div></li>`; };
+    view.innerHTML = head() + h`
+      <h1 class="m0">Did you miss these again?</h1>
+      <p class="muted"><span id="cnt">${answered}</span> of ${list.length} answered. Tap again to clear. Unanswered stays blank and does not count either way.</p>
+      ${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card">${xs.map(row).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list before this flight.</p>'}
+      ${list.length ? `<button class="btn block" id="restok">Mark all unanswered as "didn't miss"</button>` : ''}
+      <div class="actions"><button class="btn primary big grow" id="next">Next: log the flight ›</button></div>`;
+    view.querySelectorAll('.seg2 button').forEach(b => b.onclick = () => {
+      const iid = b.parentElement.dataset.id, r = b.dataset.r, cur = sec.recall[iid];
+      setScore(iid, cur === r ? '' : r);
+      const li = b.closest('li'); li.className = 'chk ' + (sec.recall[iid] || '');
+      li.querySelectorAll('.seg2 button').forEach(x => x.className = x === b && cur !== r ? 'on ' + (r === 'MISS' ? 'miss' : 'hit') : '');
+      document.getElementById('cnt').textContent = list.filter(x => sec.recall[x.item.id]).length;
+    });
+    const ro = document.getElementById('restok'); if (ro) ro.onclick = () => { for (const x of list) if (!sec.recall[x.item.id]) sec.recall[x.item.id] = 'HIT'; save(); vDebrief(id, '0'); };
+    document.getElementById('next').onclick = () => { sec.done = true; save(); location.hash = `#/debrief/${sec.id}/1`; };
+    return;
+  }
+
+  // ---- step 1: log new entries under the four headings ----
+  if (step === 1) {
     const inList = new Set(list.map(x => x.item.id));
-    const repeatLogs = sec.logs.filter(l => l.itemId && inList.has(l.itemId));
     const newLogs = sec.logs.filter(l => !(l.itemId && inList.has(l.itemId)));
-    const missedNow = list.filter(isMissed);
-    const open = sec._open || {};
-    const line = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t">${esc(l.text)}</div><div class="meta">${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? `<span>${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}${l.itemId && S.items[l.itemId] && S.items[l.itemId].createdSector !== sec.number ? `<span>↩ repeat of ${esc(S.items[l.itemId].title)}</span>` : ''}</div></div>${catOf(l) === 'missed' ? '<span class="tick miss">✕</span>' : ''}</div></li>`;
-    const repeatRow = x => `<li class="tap missed" data-id="${x.item.id}"><div class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div><div class="meta"><span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span><span class="miss-n">${x.h.misses}✕ before</span></div></div><span class="tick">✕</span></div></li>`;
-    const listRow = x => `<li class="tap ${isMissed(x) ? 'missed' : ''}" data-id="${x.item.id}"><div class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div><div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span><span class="miss-n">${x.h.misses}✕</span></div></div><span class="tick">${isMissed(x) ? '✕' : '✓'}</span></div></li>`;
-    const input = (cat, ph) => `<li class="addline"><form data-cat="${cat}"><input placeholder="${cat === 'missed' ? 'What did you miss?' : cat === 'technique' ? 'Technique to improve…' : cat === 'knowledge' ? 'Something new you learned…' : `Something specific to ${esc(dest(sec))}…`}" autocomplete="off" enterkeyhint="done">${cat === 'missed' ? `<select name="phase" title="phase">${PHASE_ORDER.map(p => `<option value="${p}" ${p === (sec._ph || 'general') ? 'selected' : ''}>${p === 'general' ? 'phase…' : PHASE_LABEL[p]}</option>`).join('')}</select>` : ''}</form><div class="sug"></div></li>`;
+    const line = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t ${catOf(l) === 'missed' ? '' : 'is-note'}">${esc(l.text)}</div><div class="meta">${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? `<span>${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}${l.itemId && S.items[l.itemId] && S.items[l.itemId].createdSector !== sec.number ? `<span>↩ repeat of ${esc(S.items[l.itemId].title)}</span>` : ''}</div></div>${catOf(l) === 'missed' ? '<span class="tick miss">✕</span>' : ''}</div></li>`;
+    const input = cat => `<li class="addline"><form data-cat="${cat}"><input placeholder="${cat === 'missed' ? 'Something new you missed…' : cat === 'technique' ? 'Technique to improve…' : cat === 'knowledge' ? 'Something new you learned…' : `Something specific to ${esc(dest(sec))}…`}" autocomplete="off" enterkeyhint="done">${cat === 'missed' ? `<select name="phase" title="phase">${PHASE_ORDER.map(p => `<option value="${p}" ${p === (sec._ph || 'general') ? 'selected' : ''}>${p === 'general' ? 'phase…' : PHASE_LABEL[p]}</option>`).join('')}</select>` : ''}</form><div class="sug"></div></li>`;
     const byCat = cat => newLogs.filter(l => catOf(l) === cat);
-    const onList = list.filter(x => !isMissed(x));
     view.innerHTML = head() + h`
       <h1 class="m0">${sec.number}. ${esc(sec.route)} <span class="muted">${fmtDate(sec.date)}</span></h1>
       <div class="muted">Instructor: ${esc(sec.instructor || '—')}${sec.conditions.length ? ' · ' + esc(sec.conditions.join(', ')) : ''}</div>
-
-      <h2>${CATS.missed}</h2>
-      <ul class="list card db">${missedNow.filter(x => !repeatLogs.some(l => l.itemId === x.item.id)).map(repeatRow).join('')}${byCat('missed').map(line).join('')}${repeatLogs.map(line).join('')}${input('missed')}</ul>
-      <details class="onlist" ${open.list ? 'open' : ''}><summary>On the list from before (${onList.length}) — tap any you missed again</summary>
-        ${groupByPhase(onList).map(([ph, xs]) => `<div class="ph">${PHASE_LABEL[ph]}</div><ul class="list card db">${xs.map(listRow).join('')}</ul>`).join('')}</details>
-
-      <h2>${CATS.technique}</h2>
-      <ul class="list card db">${byCat('technique').map(line).join('')}${input('technique')}</ul>
-      <h2>${CATS.knowledge}</h2>
-      <ul class="list card db">${byCat('knowledge').map(line).join('')}${input('knowledge')}</ul>
-      <h2>${CATS.station} · ${esc(dest(sec))}</h2>
-      <ul class="list card db">${byCat('station').map(line).join('')}${input('station')}</ul>
+      <h2>${CATS.missed} <span class="muted">new ones; repeats were ticked in step 1</span></h2>
+      <ul class="list card db">${byCat('missed').map(line).join('')}${input('missed')}</ul>
+      <h2>${CATS.technique}</h2><ul class="list card db">${byCat('technique').map(line).join('')}${input('technique')}</ul>
+      <h2>${CATS.knowledge}</h2><ul class="list card db">${byCat('knowledge').map(line).join('')}${input('knowledge')}</ul>
+      <h2>${CATS.station} · ${esc(dest(sec))}</h2><ul class="list card db">${byCat('station').map(line).join('')}${input('station')}</ul>
       <div class="card stack"><label class="f">Instructor emphasis<textarea id="emph" rows="2" placeholder="What did the instructor keep coming back to?">${esc(sec.emphasis)}</textarea></label></div>
-      <div class="actions"><button class="btn primary big grow" id="finish">Finish debrief ›</button></div>`;
-    const redraw = () => { const y = window.scrollY; vDebrief(id, '0'); window.scrollTo(0, y); };
-    view.querySelector('details.onlist').ontoggle = e => { sec._open = { list: e.target.open }; };
+      <div class="actions"><a class="btn big" href="#/debrief/${sec.id}/0">‹ Back</a><button class="btn primary big grow" id="finish">Finish ›</button></div>`;
+    const redraw = () => { const y = window.scrollY; vDebrief(id, '1'); window.scrollTo(0, y); };
     document.getElementById('emph').onchange = e => { sec.emphasis = e.target.value; save(); };
-    view.querySelectorAll('li.tap').forEach(li => li.onclick = () => {
-      const iid = li.dataset.id; const on = sec.recall[iid] === 'MISS';
-      if (on) delete sec.recall[iid]; else { sec.recall[iid] = 'MISS'; if (S.items[iid]?.manualRetiredAt) delete S.items[iid].manualRetiredAt; }
-      save(); redraw();
-    });
     view.querySelectorAll('li.newlog').forEach(li => swipeRow(li, 'Delete', () => {
       const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1); let removed = null;
       if (l.itemId && S.items[l.itemId]?.createdSector === sec.number && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { removed = S.items[l.itemId]; delete S.items[l.itemId]; }
@@ -343,32 +349,30 @@ function vDebrief(id, stepStr) {
         linked = null; const q = inp.value.trim().toLowerCase(); if (q.length < 3 || cat !== 'missed') { sug.innerHTML = ''; return; }
         const words = q.split(/\s+/).filter(w => w.length > 2);
         const hits = Object.values(S.items).map(i => ({ i, n: words.filter(w => i.title.toLowerCase().includes(w)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 2);
-        sug.innerHTML = hits.length ? `<div class="suggest">${hits.map(x => `<button type="button" data-id="${x.i.id}">↩ Same as: <b>${esc(x.i.title)}</b></button>`).join('')}</div>` : '';
+        sug.innerHTML = hits.length ? `<div class="suggest">${hits.map(x => `<button type="button" data-id="${x.i.id}">↩ Already on the list: <b>${esc(x.i.title)}</b> — mark it missed</button>`).join('')}</div>` : '';
         sug.querySelectorAll('button').forEach(b => b.onclick = () => { linked = b.dataset.id; sug.innerHTML = `<div class="linked">↩ Counts as <b>${esc(S.items[linked].title)}</b><button type="button" class="x">×</button></div>`; sug.querySelector('.x').onclick = () => { linked = null; sug.innerHTML = ''; }; });
       };
       f.onsubmit = e => {
         e.preventDefault(); const text = inp.value.trim(); if (!text) return;
         const ph = f.phase ? f.phase.value : 'general';
-        const log = { id: uid(), itemId: linked, cat, type: cat === 'missed' ? 'A' : 'C', phase: ph, text, good: false, dest: cat === 'station' };
-        if (linked) { if (inList.has(linked)) sec.recall[linked] = 'MISS'; if (S.items[linked]?.manualRetiredAt) delete S.items[linked].manualRetiredAt; }
-        else if (cat === 'missed') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
+        if (linked) { setScore(linked, 'MISS'); inp.value = ''; sug.innerHTML = ''; linked = null; toast('Marked as missed again'); return; }
+        const log = { id: uid(), itemId: null, cat, type: cat === 'missed' ? 'A' : 'C', phase: ph, text, good: false, dest: cat === 'station' };
+        if (cat === 'missed') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
         sec.logs.push(log); save(); redraw();
         const again = view.querySelector(`li.addline form[data-cat="${cat}"] input`); if (again) again.focus();
       };
     });
-    document.getElementById('finish').onclick = () => {
-      for (const x of list) if (!isMissed(x)) sec.recall[x.item.id] = 'HIT'; else if (sec.recall[x.item.id] !== 'MISS') delete sec.recall[x.item.id];
-      sec.done = true; delete sec._open; delete sec._ph; save(); location.hash = `#/debrief/${sec.id}/1`;
-    };
+    document.getElementById('finish').onclick = () => { sec.done = true; delete sec._ph; save(); location.hash = `#/debrief/${sec.id}/2`; };
     return;
   }
-  // step 1: done
+
+  // ---- step 2: done ----
   const m = sectorMisses(sec); const sc = sectorScored(sec);
   const grads = withHistory().filter(x => x.h.status === 'retired' && x.h.events.at(-1)?.sector.id === sec.id && x.h.events.at(-1)?.ev === 'HIT');
   const newCount = sec.logs.filter(l => l.itemId && S.items[l.itemId]?.createdSector === sec.number).length;
   view.innerHTML = head() + h`
-    <h1>S${sec.number} debriefed</h1>
-    <div class="kpis"><div class="kpi"><b>${m}</b><span>missed</span></div><div class="kpi"><b>${sc.hits}</b><span>done clean</span></div><div class="kpi"><b>${newCount}</b><span>new on list</span></div><div class="kpi"><b>${grads.length}</b><span>off the list</span></div></div>
+    <h1>${sec.number}. ${esc(sec.route)} debriefed</h1>
+    <div class="kpis"><div class="kpi"><b>${m}</b><span>missed</span></div><div class="kpi"><b>${sc.hits}</b><span>didn't miss</span></div><div class="kpi"><b>${newCount}</b><span>new on list</span></div><div class="kpi"><b>${grads.length}</b><span>off the list</span></div></div>
     ${grads.length ? `<div class="card"><b>Off the list:</b> ${grads.map(x => esc(x.item.title)).join(' · ')}</div>` : ''}
     <div class="actions"><a class="btn big" href="#/debrief/${sec.id}/0">‹ Edit</a><a class="btn big" href="#/sector/${sec.id}">Export</a><a class="btn primary big grow" href="#/">Home</a></div>`;
 }

@@ -197,3 +197,10 @@ details.onlist .ph { font-size: 12px; font-weight: 700; text-transform: uppercas
 li.addline select { width: auto; max-width: 42%; min-height: 40px; padding: 6px 8px; font-size: 13px; color: var(--ink-2); background: var(--surface-2); }
 a.chip { color: var(--ink-2); } a.chip.on { color: var(--accent-ink); }
 input#q { margin-bottom: 4px; }
+
+/* ---- v9: check step ---- */
+li.chk .seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+li.chk .seg2 button { min-height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); font: inherit; font-weight: 600; font-size: 14.5px; }
+li.chk .seg2 button.on.miss { background: var(--miss-bg); color: var(--miss); border-color: var(--miss); }
+li.chk .seg2 button.on.hit { background: var(--hit-bg); color: var(--hit); border-color: var(--hit); }
+li.chk.MISS .t { color: var(--miss); } li.chk.HIT .t { color: var(--ink-2); }

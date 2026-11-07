@@ -5,24 +5,22 @@ backend; everything is stored in the browser (localStorage) and can be exported.
 
 ## What it does
 
-Logging follows the sector note: four headings, one line per entry.
-
-- **Things I missed**: type it, pick the phase if you want, Enter. If it matches
-  something already on the list, tap "Same as" so it counts as a repeat. Below the
-  box, "On the list from before" opens the full recall list grouped by phase; tap any
-  you missed again. Finish counts everything untouched as done.
-- **Technique improvement**, **New knowledge**, **Station specific**: free lines.
-  Station lines are tied to that flight's destination.
-
-**Review** before a flight shows the missed list in flight order, then everything you
-have noted about that station. Technique and knowledge are reference, not rehearsal:
-the **Library** tab pulls any category out across all sectors with search, and station
-notes by airport. Each sector page renders the note with the same four headings
-and exports it as markdown.
-
-An item leaves the missed list after N clean flights in a row (N in Data, default 2)
-and comes back the moment it is missed again. Swipe left on the Recall tab to take an
-item off or put it back by hand.
+- **Review** (before a flight): the things you have been missing, in flight order,
+  then everything you have noted about that station.
+- **Debrief** (after a flight), two steps:
+  1. **Check the list.** Every item you have missed before, each with *Missed again*
+     or *Didn't miss*. Answer each one so the trend is recorded. Unanswered stays blank
+     and counts neither way; a button marks all unanswered as didn't miss.
+  2. **Log.** Four headings like the sector note: Things I missed (new ones, with an
+     optional phase), Technique improvement, New knowledge, Station specific, plus
+     instructor emphasis. One line per entry, Enter adds. Swipe left to delete.
+- **Library**: technique, knowledge and station notes accumulate here for reference,
+  searchable, station notes by airport. They are never part of Review.
+- **Recall** tab: the missed list and the graduated list. An item leaves the list after
+  N clean flights in a row (N in Data, default 2) and comes back the moment it is
+  missed again. Swipe left to take one off or put it back by hand.
+- **Trends**: misses per sector, item × sector heatmap, misses by phase.
+- Each sector page renders the note and exports it as markdown for `cup-debrief/`.
 
 ## Install on the phone
 
