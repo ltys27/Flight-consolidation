@@ -465,12 +465,30 @@ function vItem(id) {
       <div class="row"><label class="f grow">Type<select name="type">${Object.keys(TYPES).map(t => `<option ${t === it.type ? 'selected' : ''}>${t}</option>`).join('')}</select></label><label class="f grow">Phase<select name="phase">${PHASES.map(p => `<option ${p === it.phase ? 'selected' : ''}>${p}</option>`).join('')}</select></label></div>
       <div class="row"><button class="btn primary grow" type="submit">Save</button><button class="btn" type="button" id="tog">${hh.status === 'active' ? 'Graduate' : 'Pull back'}</button><button class="btn danger" type="button" id="del">Delete</button></div>
     </form>
+    <div class="card"><div class="muted" style="margin-bottom:8px">Not a miss? Move it off the recall list into the Library as a note:</div>
+      <div class="chips"><button class="chip" data-mv="technique">→ Technique improvement</button><button class="chip" data-mv="knowledge">→ New knowledge</button><button class="chip" data-mv="station">→ Station specific</button></div></div>
     <h2>History</h2>
     <ul class="list card">${hh.events.slice().reverse().map(e => `<li class="row between"><span>S${e.sector.number} · ${esc(dest(e.sector))} <span class="muted">${fmtDate(e.sector.date)}</span></span><span class="cell ${e.ev === 'MISS' ? 'X' : e.ev === 'HIT' ? 'H' : ''} wide">${e.ev || 'n/a'}</span></li>`).join('') || '<li class="empty">No debriefed sectors since this item was created.</li>'}</ul>`;
   const f = document.getElementById('ef');
   f.onsubmit = e => { e.preventDefault(); if (f.title.value.trim() !== it.title) it.titleEdited = true; it.title = f.title.value.trim() || it.title; it.cue = f.cue.value.trim(); it.type = f.type.value; it.phase = f.phase.value; save(); toast('Saved'); };
   document.getElementById('tog').onclick = () => { if (hh.status === 'active') { it.manualRetiredAt = lastN; delete it.manualActiveAt; } else { it.manualActiveAt = lastN; delete it.manualRetiredAt; } save(); rerender(); };
+  view.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => moveItem(it, b.dataset.mv));
   document.getElementById('del').onclick = () => { if (!confirm('Delete this item and unlink its logs?')) return; for (const s of S.sectors) { delete s.recall[id]; s.logs.forEach(l => { if (l.itemId === id) l.itemId = null; }); } delete S.items[id]; save(); location.hash = '#/items'; };
+}
+
+/** Turn a recall item into a library note of the given category, keeping the sectors it was logged in. */
+function moveItem(it, cat) {
+  let moved = 0;
+  for (const s of S.sectors) {
+    delete s.recall[it.id];
+    for (const l of s.logs) if (l.itemId === it.id) { l.itemId = null; l.cat = cat; l.type = 'C'; l.dest = cat === 'station'; moved++; }
+  }
+  if (!moved) { // item with no log line (e.g. only ever scored): give it one in the sector it was created
+    const s = S.sectors.find(x => x.number === it.createdSector) || S.sectors.at(-1);
+    if (s) s.logs.push({ id: uid(), itemId: null, cat, type: 'C', phase: it.phase, text: it.title, good: false, dest: cat === 'station' });
+  }
+  delete S.items[it.id]; save();
+  toast(`Moved to ${CATS[cat]}`); location.hash = '#/library/' + cat;
 }
 
 // ============================================================ trends
