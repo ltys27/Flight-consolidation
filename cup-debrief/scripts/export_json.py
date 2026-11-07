@@ -42,7 +42,8 @@ def main() -> int:
             if tracked and it.slug not in items:
                 items[it.slug] = {"id": it.slug, "title": short_title(it.text), "type": it.type, "phase": it.phase,
                                   "cue": "", "recall": True, "createdSector": s.number}
-            logs.append({"id": f"s{s.number}-{i}", "itemId": it.slug if tracked else None, "type": it.type,
+            cat = "station" if dest else ("missed" if it.type in "ABD" else ("knowledge" if it.section == "knowledge" and s.number >= 4 else "technique"))
+            logs.append({"id": f"s{s.number}-{i}", "itemId": it.slug if tracked else None, "type": it.type, "cat": cat,
                          "phase": it.phase, "text": it.text, "good": it.good, "dest": dest})
         emphasis = [l.strip()[2:].strip() for l in s.sections.get("instructor emphasis", "").splitlines()
                     if l.strip().startswith("- ") and l.strip() != "-"]
@@ -52,7 +53,7 @@ def main() -> int:
             "conditions": list(s.conditions), "recall": {k: v for k, v in s.focus3_results().items() if v},
             "logs": logs, "emphasis": "\n".join(emphasis), "next": s.next.get("focus3-carry", ""),
         })
-    data = {"version": 1, "seedVersion": 2, "settings": {"graduateAfter": 2}, "items": items, "sectors": out_sectors}
+    data = {"version": 1, "seedVersion": 3, "settings": {"graduateAfter": 2}, "items": items, "sectors": out_sectors}
     Path(a.out).write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {a.out}: {len(items)} items, {len(out_sectors)} sectors")
     return 0

@@ -51,11 +51,11 @@ PHASES = {
 # knowledge get the default type; under destination they go to the destination file only.
 SECTION_ALIASES = {
     "missed": "missed", "things i missed out": "missed", "things i miss out": "missed",
-    "items": "missed", "missed out": "missed",
+    "items": "missed", "missed out": "missed", "things i missed": "missed",
     "triggers": "triggers", "if-thens": "triggers", "if thens": "triggers",
     "knowledge": "knowledge", "technique": "knowledge", "new knowledge and tips": "knowledge",
-    "additional technique/info": "knowledge", "technique improvement": "knowledge",
-    "destination": "destination", "destination specific": "destination",
+    "additional technique/info": "knowledge", "technique improvement": "knowledge", "new knowledge": "knowledge",
+    "destination": "destination", "destination specific": "destination", "station specific": "destination",
     "phase notes": "phase notes", "instructor emphasis": "instructor emphasis", "next": "next",
 }
 SECTION_DEFAULT_TYPE = {"missed": "A", "triggers": "B", "knowledge": "C"}

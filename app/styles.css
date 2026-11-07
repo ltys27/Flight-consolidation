@@ -188,3 +188,12 @@ li.addline input:focus { background: var(--surface-2); border-style: solid; outl
 li.addline .kind { flex: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); background: var(--miss-bg); color: var(--miss); font-weight: 800; font-size: 16px; }
 li.addline .kind.note { background: var(--surface-2); color: var(--ink-2); font-style: italic; font-family: Georgia, serif; }
 .db h2 { margin-bottom: 6px; }
+
+/* ---- v7: categories ---- */
+.gear { font-size: 20px; color: var(--ink-3); margin-left: 12px; }
+details.onlist { margin: -4px 0 6px; } details.onlist summary { cursor: pointer; font-size: 14px; color: var(--accent); padding: 6px 2px; list-style: none; }
+details.onlist summary::-webkit-details-marker { display: none; } details.onlist summary::before { content: '▸ '; } details.onlist[open] summary::before { content: '▾ '; }
+details.onlist .ph { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); margin: 10px 0 4px; }
+li.addline select { width: auto; max-width: 42%; min-height: 40px; padding: 6px 8px; font-size: 13px; color: var(--ink-2); background: var(--surface-2); }
+a.chip { color: var(--ink-2); } a.chip.on { color: var(--accent-ink); }
+input#q { margin-bottom: 4px; }

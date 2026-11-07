@@ -5,21 +5,24 @@ backend; everything is stored in the browser (localStorage) and can be exported.
 
 ## What it does
 
-The list is the things you have skipped in a flow (cockpit prep, briefing, parking…),
-not knowledge. Two screens, both in flight order from prelims to parking:
+Logging follows the sector note: four headings, one line per entry.
 
-- **Review** (before the flight): read through what you have been missing, grouped by
-  phase, Focus 3 badged, plus any facts you noted for that destination. That is all.
-- **Debrief** (after the flight): the same list. Tap anything you missed or were
-  prompted on. Use **+** on a phase to add a new miss in one line; if it matches
-  something already on the list it is counted against that item instead. Swipe a new
-  line left to delete, with undo. **Finish**: everything you did not tap counts as
-  done.
+- **Things I missed**: type it, pick the phase if you want, Enter. If it matches
+  something already on the list, tap "Same as" so it counts as a repeat. Below the
+  box, "On the list from before" opens the full recall list grouped by phase; tap any
+  you missed again. Finish counts everything untouched as done.
+- **Technique improvement**, **New knowledge**, **Station specific**: free lines.
+  Station lines are tied to that flight's destination.
 
-An item leaves the list after N clean flights in a row (N in Data, default 2) and
-comes back the moment it is missed again. Swipe left on the Recall tab to take an item
-off or put it back by hand. Trends: misses per sector, item × sector heatmap, misses
-by phase.
+**Review** before a flight lets you pick what to go through: the missed list in flight
+order, all technique notes, all knowledge notes, or everything you have noted about
+that station. **Library** pulls any category out across all sectors with search, and
+station notes by airport. Each sector page renders the note with the same four headings
+and exports it as markdown.
+
+An item leaves the missed list after N clean flights in a row (N in Data, default 2)
+and comes back the moment it is missed again. Swipe left on the Recall tab to take an
+item off or put it back by hand.
 
 ## Install on the phone
 

@@ -21,6 +21,8 @@ function groupByPhase(list) {
   for (const x of list) (g.get(PHASES.includes(x.item.phase) ? x.item.phase : 'general') || g.get('general')).push(x);
   return [...g].filter(([, v]) => v.length);
 }
+const CATS = { missed: 'Things I missed', technique: 'Technique improvement', knowledge: 'New knowledge', station: 'Station specific' };
+const catOf = l => l.cat || (l.dest ? 'station' : l.type === 'C' ? 'technique' : 'missed');
 const CONDITIONS = ['tailwind', 'crosswind', 'wet', 'mel', 'load sheet', 'tobt', 'seto', 'notoc', 'cb', 'icing', 'night', 'slot'];
 
 // ============================================================ store
@@ -38,7 +40,7 @@ function normalize(d) {
   d.sectors.sort((a, b) => a.number - b.number);
   return d;
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Could not save: ' + e.message); } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); } catch (e) { toast('Could not save: ' + e.message); } }
 const uid = () => Math.random().toString(36).slice(2, 10);
 const slugify = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 5).join('-') || 'item';
 
@@ -165,9 +167,9 @@ window.addEventListener('hashchange', render);
 window.addEventListener('load', () => { render(); initPWA(); });
 function render() {
   const [path, a1, a2] = location.hash.replace(/^#\/?/, '').split('/');
-  const tab = { '': 'home', home: 'home', plan: 'home', prepare: 'home', debrief: 'home', sector: 'home', items: 'items', item: 'items', trends: 'trends', settings: 'settings' }[path] || 'home';
+  const tab = { '': 'home', home: 'home', plan: 'home', prepare: 'home', debrief: 'home', sector: 'home', items: 'items', item: 'items', library: 'library', trends: 'trends', settings: 'settings' }[path] || 'home';
   document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
-  const routes = { '': vHome, home: vHome, plan: vPlan, prepare: vPrepare, debrief: vDebrief, sector: vSector, items: vItems, item: vItem, trends: vTrends, settings: vSettings };
+  const routes = { '': vHome, home: vHome, plan: vPlan, prepare: vPrepare, debrief: vDebrief, sector: vSector, items: vItems, item: vItem, library: vLibrary, trends: vTrends, settings: vSettings };
   (routes[path] || vHome)(a1, a2);
   window.scrollTo(0, 0);
 }
@@ -241,19 +243,55 @@ function vPlan(editId) {
 }
 
 // ============================================================ review (before the flight)
-function vPrepare(id) {
+function vPrepare(id, cat = 'missed') {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
   const list = listFor(sec); const focus = new Set(list.slice(0, 3).map(x => x.item.id));
-  const facts = destFacts(sec);
+  const chips = Object.keys(CATS).map(c => `<a class="chip ${c === cat ? 'on' : ''}" href="#/prepare/${sec.id}/${c}">${c === 'station' ? esc(dest(sec)) : ({ missed: 'Missed', technique: 'Technique', knowledge: 'Knowledge' })[c]}</a>`).join('');
+  let body;
+  if (cat === 'missed') {
+    body = groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>';
+  } else {
+    const entries = libraryEntries(cat, cat === 'station' ? dest(sec) : null);
+    body = entries.length ? `<ul class="list card">${entries.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="empty">Nothing logged under ${CATS[cat]}${cat === 'station' ? ' for ' + esc(dest(sec)) : ''} yet.</p>`;
+  }
   view.innerHTML = h`
     <a href="#/" class="back">‹ Home</a>
     <h1 class="m0">Review · S${sec.number} ${esc(dest(sec))}</h1>
-    <p class="muted">What you have been missing, in flight order. Read it through once${sec.conditions.length ? `. Conditions: <b>${esc(sec.conditions.join(', '))}</b>` : ''}.</p>
-    ${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li class="${focus.has(x.item.id) ? 'is-focus' : ''}"><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>'}
-    ${facts.length ? `<h2>${esc(dest(sec))} · ${esc(CITY[dest(sec)] || AIRPORTS[dest(sec)] || '')}</h2><ul class="list card">${facts.map(f => `<li>${esc(f.text)} <span class="muted">S${f.sector}</span></li>`).join('')}</ul>` : ''}
+    <p class="muted">${cat === 'missed' ? 'What you have been missing, in flight order.' : cat === 'station' ? `Everything you noted about ${esc(dest(sec))}.` : `All your ${CATS[cat].toLowerCase()} notes, newest first.`}${sec.conditions.length && cat === 'missed' ? ` Conditions: <b>${esc(sec.conditions.join(', '))}</b>.` : ''}</p>
+    <div class="chips mt">${chips}</div>
+    ${body}
     <div class="actions"><a class="btn primary big grow" href="#/">Done</a></div>`;
 }
+/** All logged lines of one category across sectors, newest first; station filtered by airport. */
+function libraryEntries(cat, station) {
+  const out = [];
+  for (const sec of [...S.sectors].reverse()) for (const l of sec.logs) {
+    if (catOf(l) !== cat) continue; if (station && dest(sec) !== station) continue;
+    out.push({ text: l.text, sector: sec, log: l });
+  }
+  return out;
+}
 
+// ============================================================ library (extract by category)
+function vLibrary(cat = 'missed', station) {
+  const q = (S._q || '').toLowerCase();
+  const stations = [...new Set(S.sectors.map(dest))].sort();
+  let rows;
+  if (cat === 'missed') {
+    const all = withHistory().sort(rank).filter(x => !q || x.item.title.toLowerCase().includes(q));
+    rows = all.map(x => `<li><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div><div class="meta"><span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span><span class="miss-n">${x.h.misses}✕</span>${x.h.status === 'retired' ? '<span class="badge retired">off the list</span>' : ''}${strip(x.h)}</div></a></li>`);
+  } else {
+    rows = libraryEntries(cat, cat === 'station' ? station : null).filter(e => !q || e.text.toLowerCase().includes(q)).map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${fmtDate(e.sector.date)}</span></div></li>`);
+  }
+  view.innerHTML = h`
+    <h1>Library</h1>
+    <div class="chips">${Object.keys(CATS).map(c => `<a class="chip ${c === cat ? 'on' : ''}" href="#/library/${c}">${CATS[c]}</a>`).join('')}</div>
+    ${cat === 'station' ? `<div class="chips mt">${stations.map(s => `<a class="chip ${s === station ? 'on' : ''}" href="#/library/station/${s}">${s}</a>`).join('')}</div>` : ''}
+    <input id="q" class="mt" placeholder="Search…" value="${esc(S._q || '')}">
+    <p class="muted">${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${cat === 'missed' ? ' · tap one to edit it or see its history' : ''}</p>
+    <ul class="list card">${rows.join('') || '<li class="empty">Nothing here yet.</li>'}</ul>`;
+  document.getElementById('q').oninput = e => { S._q = e.target.value; vLibrary(cat, station); const i = document.getElementById('q'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
+}
 // ============================================================ debrief (after the flight)
 function vDebrief(id, stepStr) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
@@ -264,54 +302,69 @@ function vDebrief(id, stepStr) {
 
   if (step === 0) {
     const inList = new Set(list.map(x => x.item.id));
+    const repeatLogs = sec.logs.filter(l => l.itemId && inList.has(l.itemId));
     const newLogs = sec.logs.filter(l => !(l.itemId && inList.has(l.itemId)));
-    const phOf = l => l.dest ? 'destination' : (PHASES.includes(l.phase) ? l.phase : 'general');
-    const groups = Object.fromEntries(groupByPhase(list));
-    const shown = PHASE_ORDER.filter(ph => NOTE_PHASES.includes(ph) || groups[ph] || newLogs.some(l => phOf(l) === ph));
-    const rowItem = x => `<li class="tap ${isMissed(x) ? 'missed' : ''}" data-id="${x.item.id}"><div class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div><div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${strip(x.h)}</div></div><span class="tick">${isMissed(x) ? '✕' : '✓'}</span></div></li>`;
-    const rowNew = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t ${l.type === 'A' || l.type === 'B' ? 'is-miss' : 'is-note'}">${esc(l.text)}</div>${l.itemId && S.items[l.itemId] && S.items[l.itemId].createdSector !== sec.number ? `<div class="meta"><span>↩ counts as ${esc(S.items[l.itemId].title)}</span></div>` : ''}</div><span class="tick ${l.type === 'C' ? 'note' : 'miss'}">${l.type === 'C' ? 'i' : '✕'}</span></div></li>`;
-    const section = (ph, label, kindDefault) => `<h2>${label}</h2><ul class="list card db" data-ph="${ph}">${(groups[ph] || []).map(rowItem).join('')}${newLogs.filter(l => phOf(l) === ph).map(rowNew).join('')}<li class="addline"><form data-ph="${ph}" data-kind="${kindDefault}"><input placeholder="${kindDefault === 'miss' ? 'Add what you missed…' : kindDefault === 'dest' ? `Add a ${esc(dest(sec))} fact…` : 'Add a tip…'}" autocomplete="off" enterkeyhint="done">${kindDefault === 'miss' ? '<button type="button" class="kind" title="switch to note">✕</button>' : ''}</form><div class="sug"></div></li></ul>`;
+    const missedNow = list.filter(isMissed);
+    const open = sec._open || {};
+    const line = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t">${esc(l.text)}</div><div class="meta">${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? `<span>${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}${l.itemId && S.items[l.itemId] && S.items[l.itemId].createdSector !== sec.number ? `<span>↩ repeat of ${esc(S.items[l.itemId].title)}</span>` : ''}</div></div>${catOf(l) === 'missed' ? '<span class="tick miss">✕</span>' : ''}</div></li>`;
+    const repeatRow = x => `<li class="tap missed" data-id="${x.item.id}"><div class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div><div class="meta"><span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span><span class="miss-n">${x.h.misses}✕ before</span></div></div><span class="tick">✕</span></div></li>`;
+    const listRow = x => `<li class="tap ${isMissed(x) ? 'missed' : ''}" data-id="${x.item.id}"><div class="row between"><div class="grow"><div class="t">${esc(x.item.title)}</div><div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span><span class="miss-n">${x.h.misses}✕</span></div></div><span class="tick">${isMissed(x) ? '✕' : '✓'}</span></div></li>`;
+    const input = (cat, ph) => `<li class="addline"><form data-cat="${cat}"><input placeholder="${cat === 'missed' ? 'What did you miss?' : cat === 'technique' ? 'Technique to improve…' : cat === 'knowledge' ? 'Something new you learned…' : `Something specific to ${esc(dest(sec))}…`}" autocomplete="off" enterkeyhint="done">${cat === 'missed' ? `<select name="phase" title="phase">${PHASE_ORDER.map(p => `<option value="${p}" ${p === (sec._ph || 'general') ? 'selected' : ''}>${p === 'general' ? 'phase…' : PHASE_LABEL[p]}</option>`).join('')}</select>` : ''}</form><div class="sug"></div></li>`;
+    const byCat = cat => newLogs.filter(l => catOf(l) === cat);
+    const onList = list.filter(x => !isMissed(x));
     view.innerHTML = head() + h`
       <h1 class="m0">${sec.number}. ${esc(sec.route)} <span class="muted">${fmtDate(sec.date)}</span></h1>
       <div class="muted">Instructor: ${esc(sec.instructor || '—')}${sec.conditions.length ? ' · ' + esc(sec.conditions.join(', ')) : ''}</div>
-      <p class="hint">Tap a line you missed again. Type new ones under the phase, Enter adds. The ✕ beside the box toggles to <b>i</b> for a tip that is not a miss. Finish counts everything untapped as done.</p>
-      ${shown.filter(ph => ph !== 'general').map(ph => section(ph, PHASE_LABEL[ph], 'miss')).join('')}
-      ${section('general', PHASE_LABEL.general, 'note')}
-      ${section('destination', `Destination specific · ${esc(dest(sec))}`, 'dest')}
+
+      <h2>${CATS.missed}</h2>
+      <ul class="list card db">${missedNow.filter(x => !repeatLogs.some(l => l.itemId === x.item.id)).map(repeatRow).join('')}${byCat('missed').map(line).join('')}${repeatLogs.map(line).join('')}${input('missed')}</ul>
+      <details class="onlist" ${open.list ? 'open' : ''}><summary>On the list from before (${onList.length}) — tap any you missed again</summary>
+        ${groupByPhase(onList).map(([ph, xs]) => `<div class="ph">${PHASE_LABEL[ph]}</div><ul class="list card db">${xs.map(listRow).join('')}</ul>`).join('')}</details>
+
+      <h2>${CATS.technique}</h2>
+      <ul class="list card db">${byCat('technique').map(line).join('')}${input('technique')}</ul>
+      <h2>${CATS.knowledge}</h2>
+      <ul class="list card db">${byCat('knowledge').map(line).join('')}${input('knowledge')}</ul>
+      <h2>${CATS.station} · ${esc(dest(sec))}</h2>
+      <ul class="list card db">${byCat('station').map(line).join('')}${input('station')}</ul>
+      <div class="card stack"><label class="f">Instructor emphasis<textarea id="emph" rows="2" placeholder="What did the instructor keep coming back to?">${esc(sec.emphasis)}</textarea></label></div>
       <div class="actions"><button class="btn primary big grow" id="finish">Finish debrief ›</button></div>`;
+    const redraw = () => { const y = window.scrollY; vDebrief(id, '0'); window.scrollTo(0, y); };
+    view.querySelector('details.onlist').ontoggle = e => { sec._open = { list: e.target.open }; };
+    document.getElementById('emph').onchange = e => { sec.emphasis = e.target.value; save(); };
     view.querySelectorAll('li.tap').forEach(li => li.onclick = () => {
       const iid = li.dataset.id; const on = sec.recall[iid] === 'MISS';
       if (on) delete sec.recall[iid]; else { sec.recall[iid] = 'MISS'; if (S.items[iid]?.manualRetiredAt) delete S.items[iid].manualRetiredAt; }
-      save(); li.classList.toggle('missed', !on); li.querySelector('.tick').textContent = on ? '✓' : '✕';
+      save(); redraw();
     });
     view.querySelectorAll('li.newlog').forEach(li => swipeRow(li, 'Delete', () => {
       const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1); let removed = null;
       if (l.itemId && S.items[l.itemId]?.createdSector === sec.number && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { removed = S.items[l.itemId]; delete S.items[l.itemId]; }
-      save(); vDebrief(id, '0'); toast('Deleted', () => { sec.logs.splice(i, 0, l); if (removed) S.items[removed.id] = removed; save(); });
+      save(); redraw(); toast('Deleted', () => { sec.logs.splice(i, 0, l); if (removed) S.items[removed.id] = removed; save(); });
     }));
     view.querySelectorAll('li.addline form').forEach(f => {
-      const inp = f.querySelector('input'), kindBtn = f.querySelector('.kind'), sug = f.parentElement.querySelector('.sug'); let kind = f.dataset.kind, linked = null;
-      if (kindBtn) kindBtn.onclick = () => { kind = kind === 'miss' ? 'note' : 'miss'; kindBtn.textContent = kind === 'miss' ? '✕' : 'i'; kindBtn.classList.toggle('note', kind === 'note'); inp.placeholder = kind === 'miss' ? 'Add what you missed…' : 'Add a tip…'; };
+      const inp = f.querySelector('input'), sug = f.parentElement.querySelector('.sug'), cat = f.dataset.cat; let linked = null;
+      if (f.phase) f.phase.onchange = () => { sec._ph = f.phase.value; };
       inp.oninput = () => {
-        linked = null; const q = inp.value.trim().toLowerCase(); if (q.length < 3 || kind !== 'miss') { sug.innerHTML = ''; return; }
+        linked = null; const q = inp.value.trim().toLowerCase(); if (q.length < 3 || cat !== 'missed') { sug.innerHTML = ''; return; }
         const words = q.split(/\s+/).filter(w => w.length > 2);
-        const hits = Object.values(S.items).filter(i => !inList.has(i.id) || true).map(i => ({ i, n: words.filter(w => i.title.toLowerCase().includes(w)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 2);
+        const hits = Object.values(S.items).map(i => ({ i, n: words.filter(w => i.title.toLowerCase().includes(w)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 2);
         sug.innerHTML = hits.length ? `<div class="suggest">${hits.map(x => `<button type="button" data-id="${x.i.id}">↩ Same as: <b>${esc(x.i.title)}</b></button>`).join('')}</div>` : '';
         sug.querySelectorAll('button').forEach(b => b.onclick = () => { linked = b.dataset.id; sug.innerHTML = `<div class="linked">↩ Counts as <b>${esc(S.items[linked].title)}</b><button type="button" class="x">×</button></div>`; sug.querySelector('.x').onclick = () => { linked = null; sug.innerHTML = ''; }; });
       };
       f.onsubmit = e => {
         e.preventDefault(); const text = inp.value.trim(); if (!text) return;
-        const ph = f.dataset.ph; const isDest = ph === 'destination';
-        const log = { id: uid(), itemId: linked, type: kind === 'miss' ? 'A' : 'C', phase: isDest ? 'general' : ph, text, good: false, dest: isDest };
+        const ph = f.phase ? f.phase.value : 'general';
+        const log = { id: uid(), itemId: linked, cat, type: cat === 'missed' ? 'A' : 'C', phase: ph, text, good: false, dest: cat === 'station' };
         if (linked) { if (inList.has(linked)) sec.recall[linked] = 'MISS'; if (S.items[linked]?.manualRetiredAt) delete S.items[linked].manualRetiredAt; }
-        else if (kind === 'miss') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
-        sec.logs.push(log); save(); const y = window.scrollY; vDebrief(id, '0'); window.scrollTo(0, y);
-        const again = view.querySelector(`li.addline form[data-ph="${ph}"] input`); if (again) again.focus();
+        else if (cat === 'missed') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
+        sec.logs.push(log); save(); redraw();
+        const again = view.querySelector(`li.addline form[data-cat="${cat}"] input`); if (again) again.focus();
       };
     });
     document.getElementById('finish').onclick = () => {
       for (const x of list) if (!isMissed(x)) sec.recall[x.item.id] = 'HIT'; else if (sec.recall[x.item.id] !== 'MISS') delete sec.recall[x.item.id];
-      sec.done = true; save(); location.hash = `#/debrief/${sec.id}/1`;
+      sec.done = true; delete sec._open; delete sec._ph; save(); location.hash = `#/debrief/${sec.id}/1`;
     };
     return;
   }
@@ -323,23 +376,21 @@ function vDebrief(id, stepStr) {
     <h1>S${sec.number} debriefed</h1>
     <div class="kpis"><div class="kpi"><b>${m}</b><span>missed</span></div><div class="kpi"><b>${sc.hits}</b><span>done clean</span></div><div class="kpi"><b>${newCount}</b><span>new on list</span></div><div class="kpi"><b>${grads.length}</b><span>off the list</span></div></div>
     ${grads.length ? `<div class="card"><b>Off the list:</b> ${grads.map(x => esc(x.item.title)).join(' · ')}</div>` : ''}
-    <div class="card stack"><label class="f">Instructor emphasis<textarea id="emph" rows="3" placeholder="What did the instructor keep coming back to?">${esc(sec.emphasis)}</textarea></label></div>
     <div class="actions"><a class="btn big" href="#/debrief/${sec.id}/0">‹ Edit</a><a class="btn big" href="#/sector/${sec.id}">Export</a><a class="btn primary big grow" href="#/">Home</a></div>`;
-  document.getElementById('emph').onchange = e => { sec.emphasis = e.target.value; save(); };
 }
 
 // ============================================================ sector detail (read-only summary + export)
 function vSector(id) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
   const md = toMarkdown(sec); const list = listFor(sec);
-  const missedItems = list.filter(x => sec.recall[x.item.id] === 'MISS' || sec.logs.some(l => l.itemId === x.item.id && !l.good));
   const inList = new Set(list.map(x => x.item.id));
+  const repeats = list.filter(x => sec.recall[x.item.id] === 'MISS' || sec.logs.some(l => l.itemId === x.item.id && !l.good));
   const newLogs = sec.logs.filter(l => !(l.itemId && inList.has(l.itemId)));
-  const phOf = l => l.dest ? 'destination' : (PHASES.includes(l.phase) ? l.phase : 'general');
-  const lines = {};
-  for (const x of missedItems) (lines[x.item.phase] ||= []).push(`<li class="ln miss">✕ ${esc(x.item.title)} <span class="muted">again · ${x.h.misses + 1}✕</span></li>`);
-  for (const l of newLogs) (lines[phOf(l)] ||= []).push(`<li class="ln ${l.type === 'C' ? 'note' : 'miss'}">${l.type === 'C' ? '' : '✕ '}${esc(l.text)}</li>`);
-  const order = [...PHASE_ORDER, 'destination'];
+  const sections = Object.keys(CATS).map(cat => {
+    const ls = newLogs.filter(l => catOf(l) === cat).map(l => `<li class="ln ${cat === 'missed' ? 'miss' : 'note'}">${cat === 'missed' ? '✕ ' : ''}${esc(l.text)}${cat === 'missed' && l.phase !== 'general' ? ` <span class="muted">${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}</li>`);
+    if (cat === 'missed') ls.unshift(...repeats.map(x => `<li class="ln miss">✕ ${esc(x.item.title)} <span class="muted">again · ${x.h.misses + 1}✕</span></li>`));
+    return ls.length ? `<h2>${CATS[cat]}${cat === 'station' ? ' · ' + esc(dest(sec)) : ''}</h2><ul class="lines">${ls.join('')}</ul>` : '';
+  }).join('');
   const tags = ['CUP', 'Phase2A', sec.instructor ? sec.instructor.split(' ')[0] : null, dest(sec)].filter(Boolean);
   view.innerHTML = h`
     <a href="#/" class="back">‹ Home</a>
@@ -347,7 +398,7 @@ function vSector(id) {
     <div class="note-head">Instructor: ${esc(sec.instructor || '—')}<br>Tags: ${tags.map(x => '#' + esc(x)).join(' ')}${sec.conditions.length ? `<br>Conditions: ${esc(sec.conditions.join(', '))}` : ''}</div>
     <div class="actions"><a class="btn big grow" href="#/prepare/${sec.id}">☰ Review</a><a class="btn primary big grow" href="#/debrief/${sec.id}/0">${debriefed(sec) ? '✎ Edit debrief' : '✓ Debrief'}</a></div>
     ${debriefed(sec) ? `<div class="meta mt"><span class="miss-n">${sectorMisses(sec)}✕ missed</span><span class="hit-n">${sectorScored(sec).hits} done clean</span></div>` : '<p class="muted mt">Not debriefed yet.</p>'}
-    <div class="note">${order.filter(ph => lines[ph]).map(ph => `<h2>${ph === 'destination' ? `Destination specific · ${esc(dest(sec))}` : PHASE_LABEL[ph]}</h2><ul class="lines">${lines[ph].join('')}</ul>`).join('') || (debriefed(sec) ? '<p class="muted">Clean sector, nothing missed.</p>' : '')}
+    <div class="note">${sections || (debriefed(sec) ? '<p class="muted">Clean sector, nothing logged.</p>' : '')}
     ${sec.emphasis ? `<h2>Instructor emphasis</h2><ul class="lines">${sec.emphasis.split('\n').filter(Boolean).map(x => `<li class="ln">${esc(x)}</li>`).join('')}</ul>` : ''}</div>
     <h2>Markdown <span class="muted">for cup-debrief/sectors/</span></h2>
     <div class="actions"><button class="btn grow" id="copy">Copy</button><button class="btn grow" id="share">Share</button><button class="btn grow" id="dl">Download</button></div>
@@ -363,11 +414,11 @@ function toMarkdown(sec) {
     `tags: [CUP, Phase2A${sec.instructor ? ', ' + sec.instructor.split(' ')[0] : ''}, ${dest(sec)}]`, `conditions: [${sec.conditions.join(', ')}]`, 'focus3:'];
   for (const id of focus) L.push(`  - item: ${id}`, `    result: ${sec.recall[id] || ''}`);
   L.push('---');
-  const line = l => `- ${l.type === 'D' ? '[D] ' : l.good ? `[${l.type}+] ` : ''}${l.phase && l.phase !== 'general' ? l.phase + ': ' : ''}${l.text}`;
-  const by = t => sec.logs.filter(l => !l.dest && t.includes(l.type));
+  const line = l => `- ${l.type === 'D' ? '[D] ' : l.type === 'B' ? '[B] ' : l.good ? `[${l.type}+] ` : ''}${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? l.phase + ': ' : ''}${l.text}`;
+  const by = cat => sec.logs.filter(l => catOf(l) === cat);
   const extraMiss = Object.entries(sec.recall).filter(([k, v]) => v === 'MISS' && !sec.logs.some(l => l.itemId === k)).map(([k]) => { const it = S.items[k]; return `- ${it && it.phase !== 'general' ? it.phase + ': ' : ''}${it?.title || k}`; });
-  L.push('## Missed', ...by('AD').map(line), ...extraMiss, '', '## Triggers', ...by('B').map(line), '', '## Knowledge', ...by('C').map(line), '',
-    '## Destination', ...sec.logs.filter(l => l.dest).map(l => `- ${l.text}`), '', '## Phase notes', '', '## Instructor emphasis',
+  L.push('## Things I missed', ...by('missed').map(line), ...extraMiss, '', '## Technique improvement', ...by('technique').map(line), '', '## New knowledge', ...by('knowledge').map(line), '',
+    '## Station specific', ...by('station').map(l => `- ${l.text}`), '', '## Instructor emphasis',
     ...sec.emphasis.split('\n').filter(Boolean).map(x => `- ${x}`), '', '## Next', `focus3-carry: ${sec.next || ''}`, '');
   return L.join('\n');
 }
