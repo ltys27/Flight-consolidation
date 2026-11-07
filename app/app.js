@@ -117,7 +117,7 @@ let undoFn = null;
 function toast(msg, undo) {
   const t = document.getElementById('toast'); undoFn = undo || null;
   t.innerHTML = esc(msg) + (undo ? ' <button id="undo">Undo</button>' : ''); t.hidden = false;
-  if (undo) t.querySelector('#undo').onclick = () => { undoFn(); undoFn = null; t.hidden = true; render(); };
+  if (undo) t.querySelector('#undo').onclick = () => { undoFn(); undoFn = null; t.hidden = true; rerender(); };
   clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, undo ? 4000 : 1600);
 }
 function strip(hist, n = 5) {
@@ -164,6 +164,8 @@ function swipeCard(card, onRight, onLeft) {
 
 // ============================================================ router
 window.addEventListener('hashchange', render);
+/** Re-render the current view without losing the scroll position. */
+function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
 window.addEventListener('load', () => { render(); initPWA(); });
 function render() {
   const [path, a1, a2] = location.hash.replace(/^#\/?/, '').split('/');
@@ -202,7 +204,7 @@ function vHome() {
 }
 function deleteSector(id) {
   const i = S.sectors.findIndex(s => s.id === id); if (i < 0) return;
-  const [sec] = S.sectors.splice(i, 1); save(); render();
+  const [sec] = S.sectors.splice(i, 1); save(); rerender();
   toast(`Deleted S${sec.number} ${sec.route}`, () => { S.sectors.splice(i, 0, sec); S.sectors.sort((a, b) => a.number - b.number); save(); });
 }
 
@@ -447,7 +449,7 @@ function vItems(filter = 'active') {
   view.querySelectorAll('#il li[data-id]').forEach(li => swipeRow(li, filter === 'active' ? 'Graduate' : 'Pull back', () => {
     const it = S.items[li.dataset.id];
     if (filter === 'active') { it.manualRetiredAt = lastN; delete it.manualActiveAt; } else { it.manualActiveAt = lastN; delete it.manualRetiredAt; }
-    save(); render(); toast(filter === 'active' ? 'Graduated' : 'Back on the list', () => { if (filter === 'active') delete it.manualRetiredAt; else delete it.manualActiveAt; save(); });
+    save(); rerender(); toast(filter === 'active' ? 'Graduated' : 'Back on the list', () => { if (filter === 'active') delete it.manualRetiredAt; else delete it.manualActiveAt; save(); });
   }, filter === 'active' ? 'ok' : 'warn'));
 }
 function vItem(id) {
@@ -467,7 +469,7 @@ function vItem(id) {
     <ul class="list card">${hh.events.slice().reverse().map(e => `<li class="row between"><span>S${e.sector.number} · ${esc(dest(e.sector))} <span class="muted">${fmtDate(e.sector.date)}</span></span><span class="cell ${e.ev === 'MISS' ? 'X' : e.ev === 'HIT' ? 'H' : ''} wide">${e.ev || 'n/a'}</span></li>`).join('') || '<li class="empty">No debriefed sectors since this item was created.</li>'}</ul>`;
   const f = document.getElementById('ef');
   f.onsubmit = e => { e.preventDefault(); if (f.title.value.trim() !== it.title) it.titleEdited = true; it.title = f.title.value.trim() || it.title; it.cue = f.cue.value.trim(); it.type = f.type.value; it.phase = f.phase.value; save(); toast('Saved'); };
-  document.getElementById('tog').onclick = () => { if (hh.status === 'active') { it.manualRetiredAt = lastN; delete it.manualActiveAt; } else { it.manualActiveAt = lastN; delete it.manualRetiredAt; } save(); render(); };
+  document.getElementById('tog').onclick = () => { if (hh.status === 'active') { it.manualRetiredAt = lastN; delete it.manualActiveAt; } else { it.manualActiveAt = lastN; delete it.manualRetiredAt; } save(); rerender(); };
   document.getElementById('del').onclick = () => { if (!confirm('Delete this item and unlink its logs?')) return; for (const s of S.sectors) { delete s.recall[id]; s.logs.forEach(l => { if (l.itemId === id) l.itemId = null; }); } delete S.items[id]; save(); location.hash = '#/items'; };
 }
 
