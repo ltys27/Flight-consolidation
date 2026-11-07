@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CUP Debrief</title>
+<meta name="description" content="Sector debrief, recall list and habit trends for the Command Upgrade Programme">
+<meta name="theme-color" content="#0f1a2b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Debrief">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <a href="#/" class="brand">CUP Debrief</a>
+  <span id="online-dot" class="dot" title="offline ready"></span>
+</header>
+<main id="view" class="view"></main>
+<nav class="tabs">
+  <a href="#/" data-tab="sectors"><span class="ico">✈</span>Sectors</a>
+  <a href="#/items" data-tab="items"><span class="ico">☰</span>Recall</a>
+  <a href="#/trends" data-tab="trends"><span class="ico">▤</span>Trends</a>
+  <a href="#/settings" data-tab="settings"><span class="ico">⚙</span>Data</a>
+</nav>
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

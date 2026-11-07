@@ -54,6 +54,12 @@ airport's destination file.
   `cards/state.json`; `cards_export.py` writes `cards/anki.tsv`. Drafts (answer
   starting `DRAFT`) are excluded from review and export until you write the answer.
 
+## Phone app
+
+`../app/` is a PWA front end for the same loop: score the recall list, log items with
+type tags, see trends, and export the sector as markdown in this template. See
+`../app/README.md`. `scripts/export_json.py` regenerates its seed from `sectors/`.
+
 ## Layout
 
 ```
