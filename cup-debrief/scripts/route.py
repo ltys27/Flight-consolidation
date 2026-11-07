@@ -52,7 +52,7 @@ def mentions_destination(text: str, s: c.Sector) -> str:
         if not iata or iata not in c.AIRPORTS:
             continue
         icao, city = c.AIRPORTS[iata]
-        for token in (icao, iata, city):
+        for token in (icao, iata, city, *c.AIRPORT_ALIASES.get(iata, [])):
             if f" {token.lower()} " in n:
                 return icao
     return ""
@@ -76,7 +76,12 @@ def route_sector(s: c.Sector, routed: dict, dry: bool) -> int:
         if h in routed:
             continue
         targets = []
-        if it.type == "D":
+        dest_only = it.section == "destination" and not it.tagged
+        if dest_only:
+            targets.append(f"destinations/{s.dest_icao or '?'}")
+            if not dry and s.dest_icao:
+                c.append_under(dest_file(s.dest_icao), "## From sectors", [f"- [{src}] {it.text}"])
+        elif it.type == "D":
             targets.append("scripts")
             if not dry:
                 c.append_under(c.BANKS / "scripts.md", "## Logged gaps",
@@ -99,13 +104,14 @@ def route_sector(s: c.Sector, routed: dict, dry: bool) -> int:
                                [f"- In the cockpit, {it.phase}: {it.text} — what do you do / what is the number?"
                                 f"::DRAFT — write the answer, then move this card to its phase section ({src})"],
                                create_header="#flashcards\n\n# Cards\n")
-        icao = mentions_destination(it.text, s)
+        icao = "" if dest_only else (
+            s.dest_icao if it.section == "destination" else mentions_destination(it.text, s))
         if icao:
             targets.append(f"destinations/{icao}")
             if not dry:
                 c.append_under(dest_file(icao), "## From sectors", [f"- [{src}] [{it.type}] {it.phase}: {it.text}"])
-        if it.type == "A" and not targets:
-            targets.append("tracker")
+        if not dest_only and it.type in "AD" and "tracker" not in targets:
+            targets.insert(0, "tracker")
         routed[h] = {"sector": s.number, "slug": it.slug, "type": it.type, "to": targets,
                      "at": dt.date.today().isoformat()}
         print(f"  [{it.type}] {it.slug:32s} -> {', '.join(targets)}")

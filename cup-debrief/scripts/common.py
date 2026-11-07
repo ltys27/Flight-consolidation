@@ -34,8 +34,31 @@ AIRPORTS = {
     "PEN": ("WMKP", "Penang"),
     "HAK": ("ZJHK", "Haikou"),
     "SRG": ("WARS", "Semarang"),
+    "HKT": ("VTSP", "Phuket"),
+    "TRZ": ("VOTR", "Tiruchirappalli"),
 }
+# Other words that name an airport in free text.
+AIRPORT_ALIASES = {"DPS": ["bali", "denpasar"], "TRZ": ["trichy"], "SIN": ["changi"]}
 ICAO_TO_IATA = {v[0]: k for k, v in AIRPORTS.items()}
+
+PHASES = {
+    "preflight", "prelims", "flow", "cockpit-prep", "box-setup", "briefing", "cc-briefing",
+    "fuel", "pushback", "start", "taxi-out", "taxi", "takeoff", "climb", "cruise", "descent",
+    "approach", "landing", "vacate", "taxi-in", "parking", "general",
+}
+
+# Section heading -> canonical section. Untagged "- " lines under missed/triggers/
+# knowledge get the default type; under destination they go to the destination file only.
+SECTION_ALIASES = {
+    "missed": "missed", "things i missed out": "missed", "things i miss out": "missed",
+    "items": "missed", "missed out": "missed",
+    "triggers": "triggers", "if-thens": "triggers", "if thens": "triggers",
+    "knowledge": "knowledge", "technique": "knowledge", "new knowledge and tips": "knowledge",
+    "additional technique/info": "knowledge", "technique improvement": "knowledge",
+    "destination": "destination", "destination specific": "destination",
+    "phase notes": "phase notes", "instructor emphasis": "instructor emphasis", "next": "next",
+}
+SECTION_DEFAULT_TYPE = {"missed": "A", "triggers": "B", "knowledge": "C"}
 
 TYPE_NAMES = {"A": "habit-step", "B": "condition-trigger", "C": "knowledge", "D": "briefing"}
 
@@ -44,7 +67,9 @@ STOPWORDS = {
     "a", "an", "the", "to", "of", "on", "in", "at", "for", "and", "or", "was", "were",
     "is", "not", "no", "forgot", "forgotten", "missed", "missing", "didnt", "didn't",
     "did", "again", "when", "after", "before", "with", "my", "i", "we", "it", "be",
-    "still", "once", "then", "too", "late", "early",
+    "still", "once", "then", "too", "late", "early", "dont", "have", "has", "had", "can",
+    "just", "remember", "need", "must", "put", "get", "go", "do", "you", "u", "your", "me",
+    "than", "this", "that", "there", "its", "e", "g", "if", "so", "but", "as", "by",
 }
 
 # Keywords that mark a B item as conditional. Matched case-insensitively against
@@ -52,7 +77,7 @@ STOPWORDS = {
 CONDITION_KEYWORDS = [
     "tailwind", "headwind", "crosswind", "wet", "contaminated", "mel", "cdl", "tobt",
     "load sheet", "loadsheet", "figure change", "cb", "thunderstorm", "icing", "anti-ice",
-    "night", "fog", "low vis", "lvp", "fuel", "atc delay", "slot", "holding", "diversion",
+    "night", "fog", "low vis", "lvp", "atc delay", "slot", "diversion", "seto", "notoc",
     "runway change", "wind shear", "windshear", "turbulence", "short runway", "high elevation",
 ]
 
@@ -139,7 +164,7 @@ def load_slugs() -> dict[str, list[str]]:
 
 
 def norm(text: str) -> str:
-    return re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
+    return re.sub(r"[^a-z0-9 ]+", " ", text.lower().replace("'", "").replace("’", "")).strip()
 
 
 def auto_slug(text: str) -> str:
@@ -162,20 +187,59 @@ def slug_for(text: str, slugs: dict[str, list[str]] | None = None) -> str:
 # ---------------------------------------------------------------------------
 # Sector files
 # ---------------------------------------------------------------------------
-ITEM_RE = re.compile(r"^- \[([ABCD])(\+?)\]\s*([^:]+?)\s*:\s*(.+?)\s*$")
+ITEM_RE = re.compile(r"^- (?:\[([ABCD])(\+?)\]\s*)?(?:([A-Za-z][A-Za-z-]{1,20}):\s*)?(.+?)\s*$")
 
 
 class Item:
-    def __init__(self, type_: str, good: bool, phase: str, text: str, line: str):
+    def __init__(self, type_: str, good: bool, phase: str, text: str, line: str,
+                 section: str = "missed", tagged: bool = True):
         self.type = type_
         self.good = good          # "[A+]" = explicitly done well this sector
         self.phase = phase.strip().lower()
         self.text = text.strip()
         self.line = line.rstrip()
+        self.section = section
+        self.tagged = tagged
         self.slug = slug_for(self.text)
 
     def hash(self, sector: int) -> str:
         return hashlib.sha1(f"{sector}|{self.line}".encode()).hexdigest()[:12]
+
+
+def parse_items(body: str) -> list["Item"]:
+    """Items are '- ' lines. Type comes from a [A|B|C|D] tag, else from the section.
+    A leading 'phase:' is recognised only for known phases; a '### Phase' sub-heading
+    sets the phase for the lines below it."""
+    items: list[Item] = []
+    section, phase = "_", "general"
+    for raw in body.splitlines():
+        line = raw.rstrip()
+        if line.startswith("## "):
+            name = line[3:].strip().lower()
+            section = SECTION_ALIASES.get(name, name)
+            phase = "general"
+            continue
+        if line.startswith("### "):
+            cand = line[4:].strip().lower().replace(" ", "-")
+            phase = cand if cand in PHASES else "general"
+            continue
+        m = ITEM_RE.match(line.strip())
+        if not m or line.strip() in ("-", "- "):
+            continue
+        tag, plus, pfx, text = m.groups()
+        ph = phase
+        if pfx and pfx.lower() in PHASES:
+            ph = pfx.lower()
+        elif pfx:
+            text = f"{pfx}: {text}"
+        type_ = tag or SECTION_DEFAULT_TYPE.get(section)
+        if type_ is None:
+            if section == "destination":
+                type_ = "C"
+            else:
+                continue  # free text under phase notes / emphasis / next
+        items.append(Item(type_, plus == "+", ph, text, line, section, tagged=bool(tag)))
+    return items
 
 
 class Sector:
@@ -192,11 +256,7 @@ class Sector:
             self.conditions = [c.strip() for c in self.conditions.split(",") if c.strip()]
         self.focus3 = [f for f in (fm.get("focus3") or []) if isinstance(f, dict) and f.get("item")]
         self.sections = _sections(body)
-        self.items = [
-            Item(m.group(1), m.group(2) == "+", m.group(3), m.group(4), line)
-            for line in self.sections.get("items", "").splitlines()
-            if (m := ITEM_RE.match(line.strip()))
-        ]
+        self.items = parse_items(body)
         self.next = _kv_lines(self.sections.get("next", ""))
 
     @property
@@ -219,7 +279,8 @@ def _sections(body: str) -> dict[str, str]:
     for line in body.splitlines():
         if line.startswith("## "):
             out[cur] = "\n".join(buf)
-            cur = line[3:].strip().lower()
+            name = line[3:].strip().lower()
+            cur = SECTION_ALIASES.get(name, name)
             buf = []
         else:
             buf.append(line)
@@ -283,6 +344,8 @@ def build_tracker(sectors: list[Sector] | None = None) -> tuple[list[TrackerRow]
             elif res == "HIT" and row.cells.get(s.number) != "X":
                 row.cells[s.number] = "✓"
         for it in s.items:
+            if it.type == "C" or (it.section == "destination" and not it.tagged):
+                continue  # knowledge lives in technique.md/cards, not the miss tracker
             row = rows.setdefault(it.slug, TrackerRow(it.slug, it.type))
             if not row.sample:
                 row.sample = it.text
@@ -306,7 +369,7 @@ def write_tracker(sectors: list[Sector] | None = None) -> Path:
         f"Generated {dt.date.today().isoformat()} by `scripts/route.py`. Do not edit by hand.",
         "",
         "X = miss, ✓ = explicitly good, blank = not logged (blank is **not** a hit). "
-        "Rows sorted by miss count. Focus 3 draws from A/D rows only.",
+        "A, B and D items only (C lives in technique.md and cards). Rows sorted by miss count; Focus 3 draws from A/D rows.",
         "",
         head,
         sep,

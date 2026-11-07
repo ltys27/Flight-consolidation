@@ -1,222 +1,1125 @@
 {
- "06809a0d1917": {
+ "0276c90f09b2": {
   "at": "2026-11-07",
-  "sector": 5,
-  "slug": "apu-before-turn-in",
+  "sector": 2,
+  "slug": "seto-frequency-change-turning",
   "to": [
-   "tracker"
+   "triggers"
   ],
-  "type": "A"
+  "type": "B"
  },
- "0fd595fbbae4": {
-  "at": "2026-11-07",
-  "sector": 3,
-  "slug": "anti-ice-early",
-  "to": [
-   "tracker"
-  ],
-  "type": "A"
- },
- "10d5673a4483": {
-  "at": "2026-11-07",
-  "sector": 5,
-  "slug": "fo-delegation",
-  "to": [
-   "tracker"
-  ],
-  "type": "A"
- },
- "210311ab29c1": {
+ "0297285d0bcf": {
   "at": "2026-11-07",
   "sector": 3,
-  "slug": "cc-briefing-script",
+  "slug": "sd-page-default",
   "to": [
-   "scripts"
+   "tracker"
   ],
-  "type": "D"
+  "type": "A"
  },
- "3257f4b13f24": {
+ "0662131148ef": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "weather-deviation-1-60",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "0bcb32b0c79e": {
   "at": "2026-11-07",
   "sector": 1,
-  "slug": "sd-page-default",
+  "slug": "strobe-auto",
   "to": [
    "tracker"
   ],
   "type": "A"
  },
- "38d32e788695": {
+ "0c4c95e46ada": {
   "at": "2026-11-07",
   "sector": 2,
-  "slug": "white-lights-first",
-  "to": [
-   "tracker"
-  ],
-  "type": "A"
- },
- "4d02bc43a08d": {
-  "at": "2026-11-07",
-  "sector": 3,
-  "slug": "apu-before-turn-in",
-  "to": [
-   "tracker"
-  ],
-  "type": "A"
- },
- "4e59e780ceb8": {
-  "at": "2026-11-07",
-  "sector": 3,
-  "slug": "sd-page-default",
-  "to": [
-   "tracker"
-  ],
-  "type": "A"
- },
- "526b294161e0": {
-  "at": "2026-11-07",
-  "sector": 3,
-  "slug": "fo-delegation",
-  "to": [
-   "tracker"
-  ],
-  "type": "A"
- },
- "695ed1faba22": {
-  "at": "2026-11-07",
-  "sector": 2,
-  "slug": "taxi-in-speed",
+  "slug": "reduce-250-kts-enough",
   "to": [
    "technique",
    "cards"
   ],
   "type": "C"
  },
- "9f77387855e8": {
+ "0c9128198656": {
   "at": "2026-11-07",
-  "sector": 5,
-  "slug": "taxi-in-speed",
+  "sector": 4,
+  "slug": "star-before-point",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "0d65fd1c0449": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "hard-tune-any-case",
   "to": [
    "technique",
    "cards"
   ],
   "type": "C"
  },
- "a0347c4ec906": {
+ "103451c2e04f": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "tell-ground-atc-what",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "11c225a86bba": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "taxi-in-speed",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "11d5dd6dd74a": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "flaps-0-call",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "133eaca57837": {
   "at": "2026-11-07",
   "sector": 3,
+  "slug": "delay-brakes-check",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "13689a335d26": {
+  "at": "2026-11-07",
+  "sector": 1,
   "slug": "white-lights-first",
   "to": [
    "tracker"
   ],
   "type": "A"
  },
- "aa29a16dd8d7": {
+ "13cd86b420f0": {
   "at": "2026-11-07",
-  "sector": 2,
-  "slug": "cc-briefing-script",
-  "to": [
-   "scripts"
-  ],
-  "type": "D"
- },
- "aaa376a1ad7a": {
-  "at": "2026-11-07",
-  "sector": 5,
-  "slug": "anti-ice-early",
-  "to": [
-   "tracker"
-  ],
-  "type": "A"
- },
- "ac0d58fde2dd": {
-  "at": "2026-11-07",
-  "sector": 2,
-  "slug": "cjb-gates",
+  "sector": 1,
+  "slug": "digital-cvr-speakers-off",
   "to": [
    "technique",
-   "cards",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "15533a987eb5": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "notoc-through-notoc-fo",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "1cbd80bec884": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "fuel-decision-check-flight",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "1def20bc816a": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "170-kts-7-nm",
+  "to": [
+   "destinations/ZJHK"
+  ],
+  "type": "C"
+ },
+ "1f70fd588ed9": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "decompression-profile-set-altitude",
+  "to": [
    "destinations/VOCB"
   ],
   "type": "C"
  },
- "bec93e887db1": {
+ "2056ca1d6362": {
   "at": "2026-11-07",
   "sector": 1,
+  "slug": "isis-ann-lt-lighting",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "216689bf1dac": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "fo-delegation",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "25157faf6b0a": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "check-oxygen-pressure-page",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "282c649c1536": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "cc-briefing-script",
+  "to": [
+   "tracker",
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "2b18d62fabd4": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "quick-hat-check-setting",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "2f83d38ae219": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "cc-briefing-script",
+  "to": [
+   "tracker",
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "2f857eefe431": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "apu-before-turn-in",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "2ffb1eaee9e9": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "added-dual-cooling-brief",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "31e9f6b23296": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "gps-monitor",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "359934790924": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "q-slope-maintain-10",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "38836838f543": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "alternate-longer-consider-taking",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "388d7723ac9c": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "hkt-rnav-star-90",
+  "to": [
+   "technique",
+   "cards",
+   "destinations/VTSP"
+  ],
+  "type": "C"
+ },
+ "38fe3645e446": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "tobt-changes-mention-time",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "3bb9c004eb91": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "configure-gear-down-bit",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "3f2e7fd4eb9b": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "anti-ice-early",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "3f4fba8edeb2": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "wont-winds-ari-asia",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "41a68008b08c": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "disconnect-ap-full-speedbrakes",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "462a00db7b55": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "takeoff-briefing-content",
+  "to": [
+   "tracker",
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "4633afef5c91": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "doors-disarm-after-spooldown",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "47df243e01c1": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "tebun-remove-discontinuity",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "4804833f322a": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "idle-factor",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "49114913bbb6": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "into-singapore-good-more",
+  "to": [
+   "technique",
+   "cards",
+   "destinations/WSSS"
+  ],
+  "type": "C"
+ },
+ "49468d368b3e": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "flare-into-bali-right",
+  "to": [
+   "technique",
+   "cards",
+   "destinations/WADD"
+  ],
+  "type": "C"
+ },
+ "4ca32e616a3d": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "trop-higher-more-conservative",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "4d2565ea9359": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "wind-modelling-request-lower",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "50b37936396a": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "legal-fuel-required-pushback",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "52434b141c2d": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "landing-perf-know-distance",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "539e8d3a0ab3": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "let-fo-enter-take",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "57c29500c4c8": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "rotate-faster-set-50",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "5d24788f0398": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "hear-tailwind-trigger-briefing",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "5e9034835605": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "tas-increases-about-2",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "5f4a1bad17ed": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "ask-more-from-atc",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "62811c66e799": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "anti-ice-early",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "648f328dd1bd": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "irs-align-check-nav",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "6562377fcd15": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "start-preparing-fuel-weights",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "65e43d0e1744": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "spd-mach-change",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "66fde9bb8516": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "release-pitch-100",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "67a4766012f0": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "mel-briefing",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "69f736c8fe65": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "seat-belts-sign",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "6abc852bc7e7": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "high-speed-descent-pass",
+  "to": [
+   "destinations/ZJHK"
+  ],
+  "type": "C"
+ },
+ "6d3927ab5101": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "direct-point-faf-proper",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "6f46c73bfc06": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "takeoff-briefing-content",
+  "to": [
+   "tracker",
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "702990f619e8": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "defect-wheel-unsure-elb",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "7123869fa1f2": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "pax-boarding-320-30",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "72b084b27fc8": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "atc-cannot-enforce-speed",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "750f36fb903a": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "delay-pa-delays",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "779df17b55db": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "briefed-20c-instead-02c",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "79a1013f36d1": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "check-doors-releasing-brakes",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "79fe42b9a029": {
+  "at": "2026-11-07",
+  "sector": 2,
   "slug": "isis-ann-lt-lighting",
   "to": [
    "tracker"
   ],
   "type": "A"
  },
- "c8d291d5be5c": {
-  "at": "2026-11-07",
-  "sector": 5,
-  "slug": "cc-briefing-script",
-  "to": [
-   "scripts"
-  ],
-  "type": "D"
- },
- "d22c33697030": {
-  "at": "2026-11-07",
-  "sector": 5,
-  "slug": "perf-recheck-figure-change",
-  "to": [
-   "triggers"
-  ],
-  "type": "B"
- },
- "d37b2462d012": {
-  "at": "2026-11-07",
-  "sector": 2,
-  "slug": "perf-recheck-figure-change",
-  "to": [
-   "triggers"
-  ],
-  "type": "B"
- },
- "d787c563f469": {
+ "7a823108a430": {
   "at": "2026-11-07",
   "sector": 1,
-  "slug": "takeoff-briefing-content",
+  "slug": "profile-tight-into-bali",
   "to": [
+   "destinations/WADD"
+  ],
+  "type": "C"
+ },
+ "7bae810f85f9": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "flow-1-let-fo",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "7ca0a14ab5c4": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "release-autobrakes-vacating-w7",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "7d91dc585cca": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "opt-clb-check",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "7f689387624c": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "know-direct-routing-takeoff",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "8010b4dfea66": {
+  "at": "2026-11-07",
+  "sector": 4,
+  "slug": "trz-short-taxi-out",
+  "to": [
+   "technique",
+   "cards",
+   "destinations/VOTR"
+  ],
+  "type": "C"
+ },
+ "81d0a6565f79": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "mel-briefing",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "8213c8c566ec": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "pehon-called-altitude-fly",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "841798c9ad27": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "cjb-altitudes-works-terrain",
+  "to": [
+   "destinations/VOCB"
+  ],
+  "type": "C"
+ },
+ "84cdc8519d35": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "set-11-4-panel",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "851a5d88942b": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "nav-lights",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "8576f46248f5": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "perf-recheck-figure-change",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "8c20adc2ded8": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "china-beacon-first-call",
+  "to": [
+   "destinations/ZJHK"
+  ],
+  "type": "C"
+ },
+ "8cac56367b96": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "2000-atc",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "8eac441b45f4": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "cpdlc-remind-fo-transfer",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "9026a99a4783": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "tem-briefing",
+  "to": [
+   "tracker",
    "scripts"
   ],
   "type": "D"
  },
- "ddb5c9ea5171": {
+ "9030ddb23085": {
   "at": "2026-11-07",
-  "sector": 5,
+  "sector": 1,
   "slug": "sd-page-default",
   "to": [
    "tracker"
   ],
   "type": "A"
  },
- "df8a1e8dc124": {
+ "9616ddd1ee89": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "edto-fuel-leak-smoke",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "975dd0d46fe7": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "take-rwy10-d2-performance",
+  "to": [
+   "destinations/ZJHK"
+  ],
+  "type": "C"
+ },
+ "9d1d48b17ee4": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "took-fp-fuel",
+  "to": [
+   "destinations/ZJHK"
+  ],
+  "type": "C"
+ },
+ "9f520671cfee": {
   "at": "2026-11-07",
   "sector": 1,
+  "slug": "flight-pulse-filter-time",
+  "to": [
+   "technique",
+   "cards",
+   "destinations/WSSS"
+  ],
+  "type": "C"
+ },
+ "9f9711eacff2": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "avoiding-super-cell-8000",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "a2d1567296c4": {
+  "at": "2026-11-07",
+  "sector": 3,
   "slug": "white-lights-first",
   "to": [
    "tracker"
   ],
   "type": "A"
  },
- "e436cc0d7342": {
+ "a404b225b1fd": {
   "at": "2026-11-07",
   "sector": 2,
-  "slug": "takeoff-briefing-content",
+  "slug": "bumping-think-about-what",
   "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "a9766c9c47ee": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "brief-usage-flight-pulse",
+  "to": [
+   "tracker",
    "scripts"
   ],
   "type": "D"
  },
- "f78571362e5e": {
+ "a9c4487ca8a0": {
   "at": "2026-11-07",
-  "sector": 5,
+  "sector": 2,
+  "slug": "preflight-gate-brief-cc",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "aa6b4de7bbce": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "equipment-check-2-things",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "ab4eb99186c3": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "release-rudder-rotating",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "ad3b861c6fcf": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "cc-briefing-script",
+  "to": [
+   "tracker",
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "af4e59fb7b22": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "sequence-1-aerobridge-retract",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "b6294d36f991": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "headwind-landing-good-flare",
+  "to": [
+   "destinations/VOCB"
+  ],
+  "type": "C"
+ },
+ "b6ec4f91e83c": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "fcu-showed-100-kts",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "bf96aebc12e1": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "white-lights-first",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "c677f11ed6be": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "went-touch-batteries-pms",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "c8e7211fe315": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "watch-speed-reaches-mach",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "cb82d4c1d9c6": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "vdgs-left-right-calibration",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "cd87ab3975e5": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "apu-before-turn-in",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "d2d65bb0194a": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "threats-tcas-use-words",
+  "to": [
+   "tracker",
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "d52c92a4c181": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "tune-frequencies-rmp",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "d6215bf933c4": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "holding-seat-belts-weather",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "d723212c9064": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "requested-high-speed-below",
+  "to": [
+   "destinations/VOCB"
+  ],
+  "type": "C"
+ },
+ "da8dc3514d51": {
+  "at": "2026-11-07",
+  "sector": 1,
   "slug": "isis-ann-lt-lighting",
   "to": [
    "tracker"
   ],
   "type": "A"
+ },
+ "df6d14517b09": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "start-flow-dual-cooling",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "e0e8740832df": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "deciding-fuel-consider-what",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "e1253aac3bb1": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "hak-fp-routing-destination",
+  "to": [
+   "destinations/ZJHK"
+  ],
+  "type": "C"
+ },
+ "e64286e22fb5": {
+  "at": "2026-11-07",
+  "sector": 5,
+  "slug": "approach-09-maintain-flaps",
+  "to": [
+   "destinations/ZJHK"
+  ],
+  "type": "C"
+ },
+ "e91ae4d1dd01": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "glareshield-altitude-check",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "e9da6a24bec5": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "perf-recheck-figure-change",
+  "to": [
+   "triggers"
+  ],
+  "type": "B"
+ },
+ "ece1afaa7397": {
+  "at": "2026-11-07",
+  "sector": 1,
+  "slug": "reducing-speed-let-nose",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
+ },
+ "f1773f491cc8": {
+  "at": "2026-11-07",
+  "sector": 3,
+  "slug": "set-mct-slow-doing",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "f51d07d4f55e": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "sd-page-default",
+  "to": [
+   "tracker"
+  ],
+  "type": "A"
+ },
+ "f6749b50c195": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "cc-briefing-script",
+  "to": [
+   "tracker",
+   "scripts"
+  ],
+  "type": "D"
+ },
+ "f7b791572b4e": {
+  "at": "2026-11-07",
+  "sector": 2,
+  "slug": "flow-1-start-apu",
+  "to": [
+   "technique",
+   "cards"
+  ],
+  "type": "C"
  }
 }

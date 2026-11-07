@@ -44,6 +44,9 @@ perf-recheck-figure-change:
   - load sheet change
   - loadsheet change
   - figure change
+  - figures change
+  - load sheet figures
+  - load sheet arrives
 taxi-in-speed:
   - taxi-in speed
   - taxi in speed
@@ -53,6 +56,8 @@ fo-delegation:
   - fo delegation
   - delegate to fo
   - delegation
+  - get fo to do
+  - fo to do more
 isis-ann-lt-lighting:
   - isis
   - ann lt
@@ -63,8 +68,45 @@ cjb-gates:
   - cjb gate
   - coimbatore gate
 seat-belts-sign:
-  - seat belt
-  - seatbelt
+  - seat belts at the start
+  - seat belts on after
+  - forgot seat belt
+  - seatbelt sign
 nav-lights:
   - nav light
   - nav lights
+strobe-auto:
+  - strobe to auto
+  - strobe auto
+tem-briefing:
+  - brief tem
+  - tem brief
+  - tem not
+opt-clb-check:
+  - opti climb number
+  - opt clb number
+  - climb number swapped
+idle-factor:
+  - idle factor
+spd-mach-change:
+  - spd/mach
+  - spd mach
+star-before-point:
+  - have a star
+  - star before
+gps-monitor:
+  - gps monitor
+release-pitch-100:
+  - release my pitch
+  - release pitch
+flaps-0-call:
+  - flaps 0
+  - flap 0
+doors-disarm-after-spooldown:
+  - doors to disarm
+  - call doors
+mel-briefing:
+  - there is a mel
+  - when mel
+  - mel ops
+  - mel item
