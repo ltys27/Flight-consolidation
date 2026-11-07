@@ -33,6 +33,24 @@ backend; everything is stored in the browser (localStorage) and can be exported.
 
 Local test: `cd app && python3 -m http.server 8000` and open http://localhost:8000/.
 
+## Sync between phone and iPad
+
+Data syncs through a file in a **private** GitHub repo. Set it up once per device:
+
+1. On GitHub, create a private repo, e.g. `flight-data` (no files needed).
+2. GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained
+   tokens** → Generate. Repository access: *Only select repositories* → `flight-data`.
+   Permissions: *Contents: Read and write*. Copy the token.
+3. In the app: gear icon → Sync between devices → repo `ltys27/flight-data`, paste the
+   token, Save. It syncs immediately. Repeat on the other device with the same token.
+
+After that the app pulls when opened or brought to the foreground, and pushes a few
+seconds after any change. The dot top-right is green when in step, amber while changes
+wait to go up, grey offline, red if sync failed (tap the gear for the reason). If both
+devices were edited offline, each flight and each list item keeps whichever version was
+edited last, and deletions carry across. The token is stored only on the device, never
+in the exported JSON.
+
 ## Updating
 
 Edit the files, bump `VERSION` in `sw.js`, push. Regenerate the seed with

@@ -1,5 +1,5 @@
 /* Offline-first app shell. Bump VERSION on every deploy so clients refresh. */
-const VERSION = 'cup-debrief-v12';
+const VERSION = 'cup-debrief-v13';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icon.svg', './icon-192.png', './icon-512.png', './seed.json'];
 
@@ -11,7 +11,7 @@ self.addEventListener('activate', e => {
     .then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request).then(res => {
       const copy = res.clone();

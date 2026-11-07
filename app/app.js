@@ -40,7 +40,21 @@ function normalize(d) {
   d.sectors.sort((a, b) => a.number - b.number);
   return d;
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); } catch (e) { toast('Could not save: ' + e.message); } }
+const clean = (k, v) => k.startsWith('_') ? undefined : v;
+const serial = d => JSON.stringify(d, clean);
+let hashes = {};
+const hashOf = o => JSON.stringify(o, (k, v) => k === 'updatedAt' || k.startsWith('_') ? undefined : v);
+/** Remember current content so the next save() only stamps what actually changed. */
+function primeHashes() { hashes = {}; for (const s of S.sectors) hashes['s:' + s.id] = hashOf(s); for (const i of Object.values(S.items)) hashes['i:' + i.id] = hashOf(i); hashes.settings = hashOf(S.settings); }
+function stamp() {
+  const now = Date.now(), seen = new Set(); S.deleted = S.deleted || {};
+  for (const s of S.sectors) { const k = 's:' + s.id, h = hashOf(s); seen.add(k); if (hashes[k] !== h) { s.updatedAt = now; hashes[k] = h; } }
+  for (const i of Object.values(S.items)) { const k = 'i:' + i.id, h = hashOf(i); seen.add(k); if (hashes[k] !== h) { i.updatedAt = now; hashes[k] = h; } }
+  for (const k of Object.keys(hashes)) if (k !== 'settings' && !seen.has(k)) { S.deleted[k] = now; delete hashes[k]; }
+  if (hashes.settings !== hashOf(S.settings)) { S.settingsAt = now; hashes.settings = hashOf(S.settings); }
+}
+primeHashes();
+function save() { stamp(); try { localStorage.setItem(KEY, serial(S)); } catch (e) { toast('Could not save: ' + e.message); } scheduleSync(); }
 const uid = () => Math.random().toString(36).slice(2, 10);
 const slugify = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 5).join('-') || 'item';
 
@@ -521,11 +535,21 @@ function barChart(labels, values, fmt, maxOverride) {
 
 // ============================================================ settings / data
 function vSettings() {
+  const cfg = syncCfg();
   view.innerHTML = h`
     <h1>Data</h1>
     <div class="card stack">
       <label class="f">Consecutive hits to graduate an item<input id="grad" type="number" min="1" max="10" value="${S.settings.graduateAfter}"></label>
       <button class="btn block" id="svs">Save</button>
+    </div>
+    <h2>Sync between devices</h2>
+    <div class="card stack">
+      <p class="muted">Saves your data as a file in a <b>private</b> GitHub repo and keeps every device in step. Needs a fine-grained personal access token with <i>Contents: read and write</i> on that one repo. The token is stored only on this device.</p>
+      <label class="f">Private repo <span class="muted">owner/name</span><input id="sy-repo" placeholder="ltys27/flight-data" value="${esc(cfg.repo || '')}" autocapitalize="off" autocorrect="off"></label>
+      <div class="row"><label class="f grow">Branch<input id="sy-branch" value="${esc(cfg.branch || 'main')}" autocapitalize="off"></label><label class="f grow">File<input id="sy-path" value="${esc(cfg.path || 'data.json')}" autocapitalize="off"></label></div>
+      <label class="f">Token<input id="sy-token" type="password" placeholder="github_pat_…" value="${esc(cfg.token || '')}" autocapitalize="off" autocorrect="off"></label>
+      <div class="row"><button class="btn primary grow" id="sy-save">Save</button><button class="btn grow" id="sy-now" ${cfg.token ? '' : 'disabled'}>Sync now</button>${cfg.token ? '<button class="btn danger" id="sy-off">Turn off</button>' : ''}</div>
+      <div class="muted" id="sy-status">${syncStatusText()}</div>
     </div>
     <h2>Backup</h2>
     <div class="card stack">
@@ -540,26 +564,99 @@ function vSettings() {
       <button class="btn block danger" id="reset">Erase everything</button>
     </div>
     <p class="muted">Everything lives in this browser. Export a backup before clearing site data or switching phones.</p>`;
+  document.getElementById('sy-save').onclick = () => {
+    const c = { repo: document.getElementById('sy-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, ''), branch: document.getElementById('sy-branch').value.trim() || 'main', path: document.getElementById('sy-path').value.trim() || 'data.json', token: document.getElementById('sy-token').value.trim() };
+    if (!/^[^/\s]+\/[^/\s]+$/.test(c.repo)) { toast('Repo must be owner/name'); return; }
+    if (!c.token) { toast('Paste the token'); return; }
+    saveSyncCfg(c); toast('Saved. Syncing…'); syncNow().then(() => vSettings());
+  };
+  document.getElementById('sy-now').onclick = () => syncNow(true).then(() => vSettings());
+  const off = document.getElementById('sy-off'); if (off) off.onclick = () => { if (confirm('Turn off sync and forget the token on this device? Your data stays here and in the repo.')) { localStorage.removeItem(SYNC_KEY); vSettings(); } };
   document.getElementById('svs').onclick = () => { S.settings.graduateAfter = Math.max(1, +document.getElementById('grad').value || 2); save(); toast('Saved'); };
   document.getElementById('exp').onclick = () => download(`cup-debrief-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(S, null, 1), 'application/json');
-  document.getElementById('imp').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { S = normalize(JSON.parse(t)); save(); toast('Imported'); location.hash = '#/'; }).catch(err => toast('Import failed: ' + err.message)); };
+  document.getElementById('imp').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { S = normalize(JSON.parse(t)); hashes = {}; save(); toast('Imported'); location.hash = '#/'; }).catch(err => toast('Import failed: ' + err.message)); };
   document.getElementById('expmd').onclick = () => download('sectors.md', S.sectors.map(s => `<!-- ${fileName(s)} -->\n` + toMarkdown(s)).join('\n\n'), 'text/markdown');
-  document.getElementById('seed').onclick = () => { if (S.sectors.length && !confirm('Replace current data with the seed?')) return; fetch('seed.json').then(r => r.json()).then(d => { S = normalize(d); save(); toast('Seed loaded'); location.hash = '#/'; }).catch(() => toast('Could not load seed.json')); };
+  document.getElementById('seed').onclick = () => { if (S.sectors.length && !confirm('Replace current data with the seed?')) return; fetch('seed.json').then(r => r.json()).then(d => { S = normalize(d); primeHashes(); save(); toast('Seed loaded'); location.hash = '#/'; }).catch(() => toast('Could not load seed.json')); };
   document.getElementById('reset').onclick = () => { if (confirm('Erase all sectors and items?')) { S = blank(); save(); location.hash = '#/'; } };
+}
+
+// ============================================================ sync (GitHub contents API, private repo)
+const SYNC_KEY = 'cup-debrief-sync';
+function syncCfg() { try { return JSON.parse(localStorage.getItem(SYNC_KEY) || '{}'); } catch { return {}; } }
+function saveSyncCfg(c) { localStorage.setItem(SYNC_KEY, JSON.stringify(c)); }
+let syncTimer = null, syncing = false, syncAgain = false, syncState = { status: 'idle', at: 0, error: '' };
+function scheduleSync() { if (!syncCfg().token) return; syncState.dirty = true; setDot(); clearTimeout(syncTimer); syncTimer = setTimeout(() => syncNow(), 3000); }
+function syncStatusText() {
+  const cfg = syncCfg(); if (!cfg.token) return 'Not set up.';
+  if (syncState.status === 'error') return 'Sync failed: ' + syncState.error;
+  if (syncState.status === 'syncing') return 'Syncing…';
+  if (!navigator.onLine) return 'Offline. Will sync when back online.';
+  return (syncState.dirty ? 'Changes waiting to sync. ' : '') + (cfg.lastSync ? 'Last synced ' + new Date(cfg.lastSync).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '.' : 'Never synced.');
+}
+function setDot() {
+  const dot = document.getElementById('online-dot'); if (!dot) return;
+  dot.className = 'dot ' + (!navigator.onLine ? 'off' : syncState.status === 'error' ? 'err' : syncState.status === 'syncing' || syncState.dirty ? 'pending' : '');
+  dot.title = syncStatusText();
+}
+const b64enc = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, '')), c => c.charCodeAt(0)));
+function ghUrl(cfg) { return `https://api.github.com/repos/${cfg.repo}/contents/${cfg.path || 'data.json'}`; }
+function ghHeaders(cfg) { return { Authorization: 'Bearer ' + cfg.token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }; }
+/** Union by id; newer updatedAt wins; tombstones drop things deleted after their last edit. */
+function mergeData(a, b) {
+  const del = {}; for (const src of [a.deleted || {}, b.deleted || {}]) for (const [k, v] of Object.entries(src)) del[k] = Math.max(del[k] || 0, v);
+  const pick = (x, y) => (x.updatedAt || 0) >= (y.updatedAt || 0) ? x : y;
+  const secs = new Map(); for (const s of [...(b.sectors || []), ...(a.sectors || [])]) secs.set(s.id, secs.has(s.id) ? pick(s, secs.get(s.id)) : s);
+  const items = {}; for (const i of [...Object.values(b.items || {}), ...Object.values(a.items || {})]) items[i.id] = items[i.id] ? pick(i, items[i.id]) : i;
+  const out = { version: 1, settings: (a.settingsAt || 0) >= (b.settingsAt || 0) ? a.settings : b.settings, settingsAt: Math.max(a.settingsAt || 0, b.settingsAt || 0),
+    items: {}, sectors: [], deleted: del, seedVersion: a.seedVersion || b.seedVersion };
+  for (const [id, s] of secs) if (!(del['s:' + id] > (s.updatedAt || 0))) out.sectors.push(s);
+  for (const [id, i] of Object.entries(items)) if (!(del['i:' + id] > (i.updatedAt || 0))) out.items[id] = i;
+  return out;
+}
+async function syncNow(manual = false) {
+  const cfg = syncCfg(); if (!cfg.token || !cfg.repo) return;
+  if (!navigator.onLine) { if (manual) toast('Offline'); return; }
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; syncState.status = 'syncing'; setDot();
+  try {
+    const r = await fetch(ghUrl(cfg) + '?ref=' + encodeURIComponent(cfg.branch || 'main'), { headers: ghHeaders(cfg), cache: 'no-store' });
+    let remote = null, sha = null;
+    if (r.status === 200) { const j = await r.json(); sha = j.sha; remote = normalize(JSON.parse(b64dec(j.content))); }
+    else if (r.status !== 404) throw new Error(r.status === 401 ? 'token rejected' : r.status === 403 ? 'no access to that repo' : 'GitHub ' + r.status);
+    const before = serial(S);
+    if (remote) { S = normalize(mergeData(S, remote)); primeHashes(); localStorage.setItem(KEY, serial(S)); }
+    const mine = serial(S);
+    if (!remote || serial(remote) !== mine) {
+      const put = await fetch(ghUrl(cfg), { method: 'PUT', headers: { ...ghHeaders(cfg), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `cup-debrief sync ${new Date().toISOString()}`, content: b64enc(mine), branch: cfg.branch || 'main', ...(sha ? { sha } : {}) }) });
+      if (put.status === 409 || put.status === 422) { syncAgain = true; } else if (!put.ok) throw new Error('push failed (' + put.status + ')');
+    }
+    cfg.lastSync = Date.now(); saveSyncCfg(cfg);
+    syncState = { status: 'ok', at: cfg.lastSync, error: '', dirty: false };
+    if (mine !== before) { rerender(); if (manual) toast('Synced, updated from the other device'); } else if (manual) toast('Synced');
+  } catch (e) {
+    syncState = { ...syncState, status: 'error', error: e.message || String(e), dirty: true }; if (manual) toast('Sync failed: ' + syncState.error);
+  } finally {
+    syncing = false; setDot();
+    if (syncAgain) { syncAgain = false; setTimeout(() => syncNow(), 1500); }
+  }
 }
 
 // ============================================================ pwa
 function initPWA() {
   const dot = document.getElementById('online-dot');
-  const upd = () => dot.classList.toggle('off', !navigator.onLine); upd(); addEventListener('online', upd); addEventListener('offline', upd);
+  setDot(); addEventListener('online', () => { setDot(); syncNow(); }); addEventListener('offline', setDot);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
   const first = !S.sectors.length && !localStorage.getItem(KEY);
   fetch('seed.json').then(r => r.ok ? r.json() : null).then(d => {
     if (!d) return;
-    if (first) { S = normalize(d); save(); render(); toast('Loaded seed sectors 1–5'); return; }
+    if (first) { S = normalize(d); for (const s of S.sectors) s.updatedAt = 1; for (const i of Object.values(S.items)) i.updatedAt = 1; primeHashes(); localStorage.setItem(KEY, serial(S)); render(); toast('Loaded seed sectors 1–5'); syncNow(); return; }
     if (d.seedVersion && S.seedVersion !== d.seedVersion) {
       let n = 0; for (const it of Object.values(d.items || {})) { const mine = S.items[it.id]; if (mine && mine.title !== it.title && !mine.titleEdited) { mine.title = it.title; n++; } }
       S.seedVersion = d.seedVersion; save(); if (n) { render(); }
     }
-  }).catch(() => {});
+    syncNow();
+  }).catch(() => syncNow());
 }

@@ -204,3 +204,5 @@ li.chk .seg2 button { min-height: 44px; border-radius: 10px; border: 1px solid v
 li.chk .seg2 button.on.miss { background: var(--miss-bg); color: var(--miss); border-color: var(--miss); }
 li.chk .seg2 button.on.hit { background: var(--hit-bg); color: var(--hit); border-color: var(--hit); }
 li.chk.MISS .t { color: var(--miss); } li.chk.HIT .t { color: var(--ink-2); }
+
+.dot.pending { background: #f59e0b; } .dot.err { background: var(--miss); }
