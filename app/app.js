@@ -5,7 +5,7 @@
 'use strict';
 
 const KEY = 'cup-debrief-v1';
-const APP_VERSION = '19';
+const APP_VERSION = '20';
 const BASE = 'SIN';
 const TYPES = { A: 'habit', B: 'trigger', C: 'knowledge', D: 'briefing' };
 const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 'briefing', 'cc-briefing', 'fuel',
@@ -22,15 +22,17 @@ function groupByPhase(list) {
   for (const x of list) (g.get(PHASES.includes(x.item.phase) ? x.item.phase : 'general') || g.get('general')).push(x);
   return [...g].filter(([, v]) => v.length);
 }
-const CATS = { missed: 'Things I missed', technique: 'Technique improvement', knowledge: 'New knowledge', station: 'Station specific' };
+const CATS = { missed: 'Things I missed', technique: 'Technique improvement', knowledge: 'New knowledge', station: 'Station specific', instructor: 'Instructor wants' };
 const catOf = l => l.cat || (l.dest ? 'station' : l.type === 'C' ? 'technique' : 'missed');
 const CONDITIONS = ['tailwind', 'crosswind', 'wet', 'mel', 'load sheet', 'tobt', 'seto', 'notoc', 'cb', 'icing', 'night', 'slot'];
 
 // ============================================================ store
+let loadError = '';
 let S = load();
 function blank() { return { version: 1, settings: { graduateAfter: 2 }, items: {}, sectors: [] }; }
 function load() {
-  try { const raw = localStorage.getItem(KEY); if (raw) return normalize(JSON.parse(raw)); } catch (e) { console.warn(e); }
+  const raw = localStorage.getItem(KEY);
+  try { if (raw) return normalize(JSON.parse(raw)); } catch (e) { console.error('load failed', e); try { localStorage.setItem(KEY + '-broken-' + Date.now(), raw); } catch {} loadError = e.message; }
   return blank();
 }
 function normalize(d) {
@@ -38,6 +40,10 @@ function normalize(d) {
   d.settings = Object.assign({ graduateAfter: 2 }, d.settings || {});
   d.items = d.items || {};
   d.sectors = (d.sectors || []).map(s => Object.assign({ recall: {}, logs: [], conditions: [], emphasis: '', next: '' }, s));
+  for (const s of d.sectors) if (s.emphasis && s.emphasis.trim()) {
+    for (const line of s.emphasis.split('\n').map(x => x.trim()).filter(Boolean)) s.logs.push({ id: uid(), itemId: null, cat: 'instructor', type: 'C', phase: 'general', text: line, good: false, dest: false });
+    s.emphasis = '';
+  }
   d.sectors.sort(bySeq);
   for (const i of Object.values(d.items)) { // older versions stored a sector number
     for (const [old, nw] of [['manualRetiredAt', 'manualRetiredSeq'], ['manualActiveAt', 'manualActiveSeq']]) {
@@ -46,8 +52,8 @@ function normalize(d) {
   }
   return d;
 }
-const seq = s => `${s.date || ''}|${String(s.number || 0).padStart(4, '0')}`;
-const bySeq = (a, b) => seq(a) < seq(b) ? -1 : seq(a) > seq(b) ? 1 : 0;
+function seq(s) { return `${s.date || ''}|${String(s.number || 0).padStart(4, '0')}`; }
+function bySeq(a, b) { return seq(a) < seq(b) ? -1 : seq(a) > seq(b) ? 1 : 0; }
 /** Sequence key of the flight an item was created on ('' = before everything). */
 function createdSeq(item) { const s = item.createdSectorId ? S.sectors.find(x => x.id === item.createdSectorId) : S.sectors.find(x => x.number === item.createdSector); return s ? seq(s) : ''; }
 const clean = (k, v) => k.startsWith('_') ? undefined : v;
@@ -65,7 +71,7 @@ function stamp() {
 }
 primeHashes();
 function save() { stamp(); try { localStorage.setItem(KEY, serial(S)); } catch (e) { toast('Could not save: ' + e.message); } scheduleSync(); }
-const uid = () => Math.random().toString(36).slice(2, 10);
+function uid() { return Math.random().toString(36).slice(2, 10); }
 const slugify = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 5).join('-') || 'item';
 
 // ============================================================ derived
@@ -194,7 +200,7 @@ window.addEventListener('hashchange', render);
 document.addEventListener('click', e => { const el = e.target.closest('.t'); if (el && !el.closest('a, button, form')) el.classList.toggle('open'); });
 /** Re-render the current view without losing the scroll position. */
 function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
-window.addEventListener('load', () => { render(); initPWA(); });
+window.addEventListener('load', () => { render(); initPWA(); if (loadError) alert('Your saved data could not be read (' + loadError + '). A copy was kept in this browser. Export it from the gear screen and send it to me before logging anything.'); });
 const scrollMemo = {}; let curHash = location.hash, itemFrom = '#/items';
 function render() {
   if (curHash !== location.hash) { scrollMemo[curHash] = window.scrollY; if (/^#\/(items|library)/.test(curHash) && /^#\/item\//.test(location.hash)) itemFrom = curHash; curHash = location.hash; }
@@ -280,6 +286,7 @@ function vPrepare(id) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
   const list = listFor(sec); const focus = new Set(list.slice(0, 3).map(x => x.item.id));
   const station = libraryEntries('station', dest(sec));
+  const wants = sec.instructor ? libraryEntries('instructor').filter(e => e.sector.instructor === sec.instructor) : [];
   view.innerHTML = h`
     <a href="#/" class="back">‹ Home</a>
     <h1 class="m0">Review · S${sec.number} ${esc(dest(sec))}</h1>
@@ -287,6 +294,7 @@ function vPrepare(id) {
     ${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>'}
     <h2>${esc(dest(sec))} · ${esc(CITY[dest(sec)] || AIRPORTS[dest(sec)] || 'station notes')}</h2>
     ${station.length ? `<ul class="list card">${station.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Nothing noted about ${esc(dest(sec))} yet. Lines you add under Station specific will show here next time.</p>`}
+    ${sec.instructor ? `<h2>${esc(sec.instructor)} wants</h2>${wants.length ? `<ul class="list card">${wants.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Nothing noted for ${esc(sec.instructor)} yet. Lines you add under Instructor wants will show here next time you fly with them.</p>`}` : ''}
     <div class="actions"><a class="btn primary big grow" href="#/">Done</a></div>`;
 }
 /** All logged lines of one category across sectors, newest first; station filtered by airport. */
@@ -367,7 +375,7 @@ function vDebrief(id, stepStr) {
     const inList = new Set(list.map(x => x.item.id));
     const newLogs = sec.logs.filter(l => !(l.itemId && inList.has(l.itemId)));
     const line = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t ${catOf(l) === 'missed' ? '' : 'is-note'}">${esc(l.text)}</div><div class="meta">${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? `<span>${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}${l.itemId && S.items[l.itemId] && !(S.items[l.itemId].createdSectorId === sec.id || (!S.items[l.itemId].createdSectorId && S.items[l.itemId].createdSector === sec.number)) ? `<span>↩ repeat of ${esc(S.items[l.itemId].title)}</span>` : ''}</div></div>${catOf(l) === 'missed' ? '<span class="tick miss">✕</span>' : ''}</div></li>`;
-    const input = cat => `<li class="addline"><form data-cat="${cat}"><input placeholder="${cat === 'missed' ? 'Something new you missed…' : cat === 'technique' ? 'Technique to improve…' : cat === 'knowledge' ? 'Something new you learned…' : `Something specific to ${esc(dest(sec))}…`}" autocomplete="off" enterkeyhint="done">${cat === 'missed' ? `<select name="phase" title="phase">${PHASE_ORDER.map(p => `<option value="${p}" ${p === (sec._ph || 'general') ? 'selected' : ''}>${p === 'general' ? 'phase…' : PHASE_LABEL[p]}</option>`).join('')}</select>` : ''}</form><div class="sug"></div></li>`;
+    const input = cat => `<li class="addline"><form data-cat="${cat}"><input placeholder="${cat === 'missed' ? 'Something new you missed…' : cat === 'technique' ? 'Technique to improve…' : cat === 'knowledge' ? 'Something new you learned…' : cat === 'instructor' ? `What ${esc(sec.instructor || 'the instructor')} wants…` : `Something specific to ${esc(dest(sec))}…`}" autocomplete="off" enterkeyhint="done">${cat === 'missed' ? `<select name="phase" title="phase">${PHASE_ORDER.map(p => `<option value="${p}" ${p === (sec._ph || 'general') ? 'selected' : ''}>${p === 'general' ? 'phase…' : PHASE_LABEL[p]}</option>`).join('')}</select>` : ''}</form><div class="sug"></div></li>`;
     const byCat = cat => newLogs.filter(l => catOf(l) === cat);
     view.innerHTML = head() + h`
       <h1 class="m0">${sec.number}. ${esc(sec.route)} <span class="muted">${fmtDate(sec.date)}</span></h1>
@@ -377,10 +385,9 @@ function vDebrief(id, stepStr) {
       <h2>${CATS.technique}</h2><ul class="list card db">${byCat('technique').map(line).join('')}${input('technique')}</ul>
       <h2>${CATS.knowledge}</h2><ul class="list card db">${byCat('knowledge').map(line).join('')}${input('knowledge')}</ul>
       <h2>${CATS.station} · ${esc(dest(sec))}</h2><ul class="list card db">${byCat('station').map(line).join('')}${input('station')}</ul>
-      <div class="card stack"><label class="f">Instructor emphasis<textarea id="emph" rows="2" placeholder="What did the instructor keep coming back to?">${esc(sec.emphasis)}</textarea></label></div>
+      <h2>${CATS.instructor}${sec.instructor ? ' · ' + esc(sec.instructor) : ''}</h2><ul class="list card db">${byCat('instructor').map(line).join('')}${input('instructor')}</ul>
       <div class="actions"><a class="btn big" href="#/debrief/${sec.id}/0">‹ Back</a><button class="btn primary big grow" id="finish">Finish ›</button></div>`;
     const redraw = () => { const y = window.scrollY; vDebrief(id, '1'); window.scrollTo(0, y); };
-    document.getElementById('emph').onchange = e => { sec.emphasis = e.target.value; save(); };
     view.querySelectorAll('li.newlog').forEach(li => swipeRow(li, 'Delete', () => {
       const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1); let removed = null;
       if (l.itemId && (S.items[l.itemId]?.createdSectorId === sec.id || S.items[l.itemId]?.createdSector === sec.number) && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { removed = S.items[l.itemId]; delete S.items[l.itemId]; }
@@ -431,7 +438,7 @@ function vSector(id) {
   const sections = Object.keys(CATS).map(cat => {
     const ls = newLogs.filter(l => catOf(l) === cat).map(l => `<li class="ln ${cat === 'missed' ? 'miss' : 'note'}">${cat === 'missed' ? '✕ ' : ''}${esc(l.text)}${cat === 'missed' && l.phase !== 'general' ? ` <span class="muted">${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}</li>`);
     if (cat === 'missed') ls.unshift(...repeats.map(x => `<li class="ln miss">✕ ${esc(x.item.title)} <span class="muted">again · ${x.h.misses + 1}✕</span></li>`));
-    return ls.length ? `<h2>${CATS[cat]}${cat === 'station' ? ' · ' + esc(dest(sec)) : ''}</h2><ul class="lines">${ls.join('')}</ul>` : '';
+    return ls.length ? `<h2>${CATS[cat]}${cat === 'station' ? ' · ' + esc(dest(sec)) : cat === 'instructor' && sec.instructor ? ' · ' + esc(sec.instructor) : ''}</h2><ul class="lines">${ls.join('')}</ul>` : '';
   }).join('');
   const tags = ['CUP', 'Phase2A', sec.instructor ? sec.instructor.split(' ')[0] : null, dest(sec)].filter(Boolean);
   view.innerHTML = h`
@@ -441,7 +448,7 @@ function vSector(id) {
     <div class="actions"><a class="btn big grow" href="#/prepare/${sec.id}">☰ Review</a><a class="btn primary big grow" href="#/debrief/${sec.id}/0">${debriefed(sec) ? '✎ Edit debrief' : '✓ Debrief'}</a></div>
     ${debriefed(sec) ? `<div class="meta mt"><span class="miss-n">${sectorMisses(sec)}✕ missed</span><span class="hit-n">${sectorScored(sec).hits} done clean</span></div>` : '<p class="muted mt">Not debriefed yet.</p>'}
     <div class="note">${sections || (debriefed(sec) ? '<p class="muted">Clean sector, nothing logged.</p>' : '')}
-    ${sec.emphasis ? `<h2>Instructor emphasis</h2><ul class="lines">${sec.emphasis.split('\n').filter(Boolean).map(x => `<li class="ln">${esc(x)}</li>`).join('')}</ul>` : ''}</div>
+</div>
     <h2>Markdown <span class="muted">for cup-debrief/sectors/</span></h2>
     <div class="actions"><button class="btn grow" id="copy">Copy</button><button class="btn grow" id="share">Share</button><button class="btn grow" id="dl">Download</button></div>
     <pre class="md">${esc(md)}</pre>`;
@@ -462,7 +469,7 @@ function toMarkdown(sec) {
   const extraMiss = Object.entries(sec.recall).filter(([k, v]) => v === 'MISS' && !sec.logs.some(l => l.itemId === k)).map(([k]) => { const it = S.items[k]; return `- ${it && it.phase !== 'general' ? it.phase + ': ' : ''}${it?.title || k}`; });
   L.push('## Things I missed', ...by('missed').map(line), ...extraMiss, '', '## Technique improvement', ...by('technique').map(line), '', '## New knowledge', ...by('knowledge').map(line), '',
     '## Station specific', ...by('station').map(l => `- ${l.text}`), '', '## Instructor emphasis',
-    ...sec.emphasis.split('\n').filter(Boolean).map(x => `- ${x}`), '', '## Next', `focus3-carry: ${sec.next || ''}`, '');
+    ...by('instructor').map(l => `- ${l.text}`), '', '## Next', `focus3-carry: ${sec.next || ''}`, '');
   return L.join('\n');
 }
 function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -688,7 +695,7 @@ function initPWA() {
   fetch('seed.json').then(r => r.ok ? r.json() : null).then(d => {
     if (!d) return;
     if (first) { S = normalize(d); for (const s of S.sectors) s.updatedAt = 1; for (const i of Object.values(S.items)) i.updatedAt = 1; primeHashes(); localStorage.setItem(KEY, serial(S)); render(); toast('Loaded seed sectors 1–5'); syncNow(); return; }
-    if (d.seedVersion && S.seedVersion !== d.seedVersion) {
+    if (!loadError && d.seedVersion && S.seedVersion !== d.seedVersion) {
       let n = 0; for (const it of Object.values(d.items || {})) { const mine = S.items[it.id]; if (mine && mine.title !== it.title && !mine.titleEdited) { mine.title = it.title; n++; } }
       S.seedVersion = d.seedVersion; save(); if (n) { render(); }
     }
