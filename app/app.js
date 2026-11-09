@@ -5,7 +5,7 @@
 'use strict';
 
 const KEY = 'cup-debrief-v1';
-const APP_VERSION = '21';
+const APP_VERSION = '22';
 const BASE = 'SIN';
 const TYPES = { A: 'habit', B: 'trigger', C: 'knowledge', D: 'briefing' };
 const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 'briefing', 'cc-briefing', 'fuel',
@@ -196,9 +196,19 @@ function swipeCard(card, onRight, onLeft) {
 
 // ============================================================ read aloud (on-device speech, works offline)
 const speech = { lines: [], idx: 0, state: 'idle', bar: null };
+const VOICE_KEY = 'cup-debrief-voice'; // per device: the phone and the iPad can have different voices installed
 function voiceFor() {
-  const vs = speechSynthesis.getVoices(); const lang = S.settings.voiceLang || 'en-GB';
-  return vs.find(v => v.lang === lang && !v.localService === false) || vs.find(v => v.lang === lang) || vs.find(v => v.lang.startsWith('en')) || null;
+  const vs = speechSynthesis.getVoices(); if (!vs.length) return null;
+  const want = localStorage.getItem(VOICE_KEY);
+  if (want) { const v = vs.find(v => v.voiceURI === want || v.name + '|' + v.lang === want); if (v) return v; }
+  for (const lang of ['en-SG', 'en_SG', 'en-GB', 'en-AU', 'en-IN', 'en-US']) { const v = vs.find(v => v.lang.replace('_', '-') === lang.replace('_', '-')); if (v) return v; }
+  return vs.find(v => v.lang.startsWith('en')) || vs[0];
+}
+function voiceOptions() {
+  const vs = speechSynthesis.getVoices().filter(v => v.lang.toLowerCase().startsWith('en')).sort((a, b) => (a.lang + a.name).localeCompare(b.lang + b.name));
+  const cur = voiceFor();
+  const region = l => ({ SG: 'Singapore', GB: 'UK', AU: 'Australia', IN: 'India', US: 'US', IE: 'Ireland', ZA: 'South Africa', NZ: 'New Zealand' })[l.replace('_', '-').split('-')[1]] || l;
+  return vs.map(v => `<option value="${esc(v.voiceURI)}" ${cur && v.voiceURI === cur.voiceURI ? 'selected' : ''}>${esc(v.name)} — English (${region(v.lang)})</option>`).join('');
 }
 function speakLine() {
   if (speech.state !== 'playing') return;
@@ -648,12 +658,22 @@ function vSettings() {
       <button class="btn block" id="seed">Load seed data</button>
       <button class="btn block danger" id="reset">Erase everything</button>
     </div>
+    <h2>Read aloud</h2>
+    <div class="card stack">
+      <label class="f">Voice <span class="muted">on this device</span><select id="voice">${('speechSynthesis' in window && voiceOptions()) || '<option value="">(no voices found yet — open this screen again)</option>'}</select></label>
+      <div class="row"><button class="btn grow" id="voice-test">▶ Preview</button></div>
+      <p class="muted">For a Singapore voice: iOS Settings → Accessibility → Spoken Content → Voices → English → English (Singapore), download one, then pick it here.</p>
+    </div>
     <h2>App</h2>
     <div class="card stack">
       <div class="row between"><span>Version <b>${APP_VERSION}</b></span><button class="btn small" id="upd">Check for updates</button></div>
       <div class="muted" id="upd-status"></div>
     </div>
     <p class="muted">Everything lives in this browser. Export a backup before clearing site data or switching phones.</p>`;
+  const vsel = document.getElementById('voice');
+  vsel.onchange = () => { if (vsel.value) localStorage.setItem(VOICE_KEY, vsel.value); };
+  if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { if (location.hash.startsWith('#/settings') && document.getElementById('voice')) document.getElementById('voice').innerHTML = voiceOptions(); };
+  document.getElementById('voice-test').onclick = () => { stopSpeech(); const u = new SpeechSynthesisUtterance('Cockpit prep. White lights first, then strobe to auto. SD page back to default.'); const v = voiceFor(); if (v) { u.voice = v; u.lang = v.lang; } u.rate = +(S.settings.rate || 1); speechSynthesis.speak(u); };
   document.getElementById('upd').onclick = async () => {
     const st = document.getElementById('upd-status'); st.textContent = 'Checking…';
     try { const reg = await navigator.serviceWorker?.getRegistration(); if (!reg) { st.textContent = 'Not installed as an app; just reload.'; return; }
