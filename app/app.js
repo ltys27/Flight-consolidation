@@ -664,7 +664,11 @@ function initPWA() {
   const dot = document.getElementById('online-dot');
   setDot(); addEventListener('online', () => { setDot(); syncNow(); }); addEventListener('offline', setDot);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(); });
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => reg.update()).catch(e => console.warn('sw', e));
+    // a new version took over: reload once so this open already runs it
+    let reloading = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloading || !navigator.serviceWorker.controller) return; reloading = true; location.reload(); });
+  }
   const first = !S.sectors.length && !localStorage.getItem(KEY);
   fetch('seed.json').then(r => r.ok ? r.json() : null).then(d => {
     if (!d) return;

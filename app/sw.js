@@ -1,5 +1,5 @@
 /* Offline-first app shell. Bump VERSION on every deploy so clients refresh. */
-const VERSION = 'cup-debrief-v17';
+const VERSION = 'cup-debrief-v18';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icon.svg', './icon-192.png', './icon-512.png', './seed.json'];
 
