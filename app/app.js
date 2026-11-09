@@ -189,6 +189,8 @@ function swipeCard(card, onRight, onLeft) {
 
 // ============================================================ router
 window.addEventListener('hashchange', render);
+// tap a clamped title to show the whole thing (titles inside links open their page instead)
+document.addEventListener('click', e => { const el = e.target.closest('.t'); if (el && !el.closest('a, button, form')) el.classList.toggle('open'); });
 /** Re-render the current view without losing the scroll position. */
 function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
 window.addEventListener('load', () => { render(); initPWA(); });

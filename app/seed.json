@@ -1,6 +1,6 @@
 {
  "version": 1,
- "seedVersion": 3,
+ "seedVersion": 4,
  "settings": {
   "graduateAfter": 2
  },
@@ -43,7 +43,7 @@
   },
   "went-touch-batteries-pms": {
    "id": "went-touch-batteries-pms",
-   "title": "went to touch the batteries",
+   "title": "went to touch the batteries — that is PM's duty; wiper, radar, ign, eng must all be checked before touching the batteries",
    "type": "A",
    "phase": "prelims",
    "cue": "",
@@ -79,7 +79,7 @@
   },
   "quick-hat-check-setting": {
    "id": "quick-hat-check-setting",
-   "title": "quick hat check after setting up the box, progress page for…",
+   "title": "quick hat check after setting up the box, progress page for OPT FL",
    "type": "A",
    "phase": "box-setup",
    "cue": "",
@@ -88,7 +88,7 @@
   },
   "idle-factor": {
    "id": "idle-factor",
-   "title": "check idle factor, not just perf",
+   "title": "check idle factor, not just perf (card should add idle factor so we don't miss it)",
    "type": "A",
    "phase": "cockpit-prep",
    "cue": "",
@@ -97,7 +97,7 @@
   },
   "fo-delegation": {
    "id": "fo-delegation",
-   "title": "FO delegation — get FO to do more for you: \"please…",
+   "title": "FO delegation — get FO to do more for you: \"please crosscheck and send the fuel figures for me\"",
    "type": "A",
    "phase": "cockpit-prep",
    "cue": "",
@@ -106,7 +106,7 @@
   },
   "let-fo-enter-take": {
    "id": "let-fo-enter-take",
-   "title": "let FO enter and take the iPad first, otherwise hurry, sit…",
+   "title": "let FO enter and take the iPad first, otherwise hurry, sit and let him take",
    "type": "A",
    "phase": "prelims",
    "cue": "",
@@ -133,7 +133,7 @@
   },
   "cc-briefing-script": {
    "id": "cc-briefing-script",
-   "title": "CC briefing — taxi min is 10 mins out of SG, not 5; layer 2…",
+   "title": "CC briefing — taxi min is 10 mins out of SG, not 5; layer 2 is about how you can help them: will they be done with service by then, let them know you will release them after",
    "type": "D",
    "phase": "cc-briefing",
    "cue": "",
@@ -142,7 +142,7 @@
   },
   "equipment-check-2-things": {
    "id": "equipment-check-2-things",
-   "title": "equipment check had 2 things unchecked",
+   "title": "equipment check had 2 things unchecked (item 3); cross-check local time",
    "type": "A",
    "phase": "cc-briefing",
    "cue": "",
@@ -160,7 +160,7 @@
   },
   "flaps-0-call": {
    "id": "flaps-0-call",
-   "title": "almost forgot to call flaps 0",
+   "title": "almost forgot to call flaps 0 — focus on flap retraction first, don't get distracted; pull speed if you want",
    "type": "A",
    "phase": "takeoff",
    "cue": "",
@@ -169,7 +169,7 @@
   },
   "watch-speed-reaches-mach": {
    "id": "watch-speed-reaches-mach",
-   "title": "watch speed as it reaches the Mach via perf page, press the…",
+   "title": "watch speed as it reaches the Mach via perf page, press the speed button back to opti-climb speed",
    "type": "A",
    "phase": "climb",
    "cue": "",
@@ -178,7 +178,7 @@
   },
   "release-autobrakes-vacating-w7": {
    "id": "release-autobrakes-vacating-w7",
-   "title": "release autobrakes early when vacating",
+   "title": "release autobrakes early when vacating (W7)",
    "type": "A",
    "phase": "vacate",
    "cue": "",
@@ -196,7 +196,7 @@
   },
   "perf-recheck-figure-change": {
    "id": "perf-recheck-figure-change",
-   "title": "when the load sheet arrives -> put in figures and cross check",
+   "title": "when the load sheet arrives -> put in figures and cross check; write the pax on my sheet; go through with FO; get latest weather then cross-check performance",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -205,7 +205,7 @@
   },
   "mel-briefing": {
    "id": "mel-briefing",
-   "title": "when there is a MEL -> brief the MEL ops procedure later,…",
+   "title": "when there is a MEL -> brief the MEL ops procedure later, finish prep first",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -223,7 +223,7 @@
   },
   "defect-wheel-unsure-elb": {
    "id": "defect-wheel-unsure-elb",
-   "title": "when a defect (e.g. wheel) and unsure -> put it in the ELB…",
+   "title": "when a defect (e.g. wheel) and unsure -> put it in the ELB and get the engineer to sign; it is their problem to clear, not yours",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -232,7 +232,7 @@
   },
   "opt-clb-check": {
    "id": "opt-clb-check",
-   "title": "opti climb number swapped",
+   "title": "opti climb number swapped — must double check",
    "type": "A",
    "phase": "cockpit-prep",
    "cue": "",
@@ -241,7 +241,7 @@
   },
   "fcu-showed-100-kts": {
    "id": "fcu-showed-100-kts",
-   "title": "FCU showed 100 kts",
+   "title": "FCU showed 100 kts — need to just manage it",
    "type": "A",
    "phase": "cockpit-prep",
    "cue": "",
@@ -250,7 +250,7 @@
   },
   "tem-briefing": {
    "id": "tem-briefing",
-   "title": "brief TEM — taxi error since it is in the INTAM, re-read the…",
+   "title": "brief TEM — taxi error since it is in the INTAM, re-read the INTAM; consider T9 when 02L; clear shift or brief the proper procedure; see the threat to it",
    "type": "D",
    "phase": "briefing",
    "cue": "",
@@ -268,7 +268,7 @@
   },
   "brief-usage-flight-pulse": {
    "id": "brief-usage-flight-pulse",
-   "title": "remember to brief usage of Flight Pulse to score points",
+   "title": "remember to brief usage of Flight Pulse to score points — in short, practise the briefing",
    "type": "D",
    "phase": "briefing",
    "cue": "",
@@ -286,7 +286,7 @@
   },
   "check-doors-releasing-brakes": {
    "id": "check-doors-releasing-brakes",
-   "title": "check doors before releasing brakes",
+   "title": "check doors before releasing brakes — cargo doors were already open before I released the brakes",
    "type": "A",
    "phase": "parking",
    "cue": "",
@@ -304,7 +304,7 @@
   },
   "preflight-gate-brief-cc": {
    "id": "preflight-gate-brief-cc",
-   "title": "when preflight at the gate -> brief CC first, then give AWNF",
+   "title": "when preflight at the gate -> brief CC first, then give AWNF; get it out of the way, APC is more important than the misc stuff",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -313,7 +313,7 @@
   },
   "deciding-fuel-consider-what": {
    "id": "deciding-fuel-consider-what",
-   "title": "when deciding fuel -> consider what if the runway closes: do…",
+   "title": "when deciding fuel -> consider what if the runway closes: do you have enough fuel, what would you do",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -322,7 +322,7 @@
   },
   "seto-frequency-change-turning": {
    "id": "seto-frequency-change-turning",
-   "title": "when SETO -> frequency change or turning on",
+   "title": "when SETO -> frequency change or turning on; takeoff can start if no traffic and 5 mins required, otherwise slightly before Romeo if there is an aircraft ahead",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -331,7 +331,7 @@
   },
   "holding-seat-belts-weather": {
    "id": "holding-seat-belts-weather",
-   "title": "when holding the seat belts on for weather -> feel free to…",
+   "title": "when holding the seat belts on for weather -> feel free to tell CC to hold the service; no need to take the risk",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -340,7 +340,7 @@
   },
   "bumping-think-about-what": {
    "id": "bumping-think-about-what",
-   "title": "when bumping -> think about what is causing it: shifting…",
+   "title": "when bumping -> think about what is causing it: shifting winds, look at SAT as well",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -367,7 +367,7 @@
   },
   "threats-tcas-use-words": {
    "id": "threats-tcas-use-words",
-   "title": "for threats on TCAS use the words \"conflicting aircraft\"",
+   "title": "for threats on TCAS use the words \"conflicting aircraft\"; read the chart number when briefing",
    "type": "D",
    "phase": "briefing",
    "cue": "",
@@ -403,7 +403,7 @@
   },
   "hear-tailwind-trigger-briefing": {
    "id": "hear-tailwind-trigger-briefing",
-   "title": "when you hear TAILWIND -> trigger briefing: if landing, \"MED…",
+   "title": "when you hear TAILWIND -> trigger briefing: if landing, \"MED autobrakes with full reversers\"; recalculate landing performance; if taking off and past the limit, delay the takeoff",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -430,7 +430,7 @@
   },
   "star-before-point": {
    "id": "star-before-point",
-   "title": "have a STAR in before hitting the STAR point",
+   "title": "have a STAR in before hitting the STAR point; use PLAN mode to check",
    "type": "A",
    "phase": "descent",
    "cue": "",
@@ -457,7 +457,7 @@
   },
   "know-direct-routing-takeoff": {
    "id": "know-direct-routing-takeoff",
-   "title": "when you know it is a direct routing before takeoff -> know…",
+   "title": "when you know it is a direct routing before takeoff -> know the general heading",
    "type": "B",
    "phase": "general",
    "cue": "",
@@ -466,7 +466,7 @@
   },
   "seat-belts-sign": {
    "id": "seat-belts-sign",
-   "title": "seat belts at the start",
+   "title": "seat belts at the start — remember to put seat belts on after the engineer comes up from stay-over and refuelling",
    "type": "A",
    "phase": "prelims",
    "cue": "",
