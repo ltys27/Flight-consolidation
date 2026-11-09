@@ -216,3 +216,6 @@ li.chk.MISS .t { color: var(--miss); } li.chk.HIT .t { color: var(--ink-2); }
 .readbar select { width: auto; min-height: 38px; padding: 4px 8px; font-size: 13px; margin-left: auto; }
 .readbar.on #rb-play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .speaking { background: var(--accent-bg) !important; border-radius: 8px; box-shadow: 0 0 0 6px var(--accent-bg); }
+
+.list li.grp { padding: 14px 0 4px; border-top: 0; } .list li.grp h2 { margin: 0; } .list li.grp + li { border-top: 0; }
+.chips .sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; align-self: center; }
