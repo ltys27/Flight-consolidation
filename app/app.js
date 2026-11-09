@@ -5,6 +5,7 @@
 'use strict';
 
 const KEY = 'cup-debrief-v1';
+const APP_VERSION = '19';
 const BASE = 'SIN';
 const TYPES = { A: 'habit', B: 'trigger', C: 'knowledge', D: 'briefing' };
 const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 'briefing', 'cc-briefing', 'fuel',
@@ -579,7 +580,21 @@ function vSettings() {
       <button class="btn block" id="seed">Load seed data</button>
       <button class="btn block danger" id="reset">Erase everything</button>
     </div>
+    <h2>App</h2>
+    <div class="card stack">
+      <div class="row between"><span>Version <b>${APP_VERSION}</b></span><button class="btn small" id="upd">Check for updates</button></div>
+      <div class="muted" id="upd-status"></div>
+    </div>
     <p class="muted">Everything lives in this browser. Export a backup before clearing site data or switching phones.</p>`;
+  document.getElementById('upd').onclick = async () => {
+    const st = document.getElementById('upd-status'); st.textContent = 'Checking…';
+    try { const reg = await navigator.serviceWorker?.getRegistration(); if (!reg) { st.textContent = 'Not installed as an app; just reload.'; return; }
+      await reg.update(); await new Promise(r => setTimeout(r, 1500));
+      if (reg.waiting) { reg.waiting.postMessage('skip'); st.textContent = 'Updating…'; }
+      else if (reg.installing) st.textContent = 'Downloading the new version, it will reload by itself…';
+      else st.textContent = 'You have the latest version.';
+    } catch (e) { st.textContent = 'Could not check: ' + e.message; }
+  };
   document.getElementById('sy-save').onclick = () => {
     const c = { repo: document.getElementById('sy-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, ''), branch: document.getElementById('sy-branch').value.trim() || 'main', path: document.getElementById('sy-path').value.trim() || 'data.json', token: document.getElementById('sy-token').value.trim() };
     if (!/^[^/\s]+\/[^/\s]+$/.test(c.repo)) { toast('Repo must be owner/name'); return; }
