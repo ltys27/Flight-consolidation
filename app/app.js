@@ -5,7 +5,7 @@
 'use strict';
 
 const KEY = 'cup-debrief-v1';
-const APP_VERSION = '22';
+const APP_VERSION = '23';
 const BASE = 'SIN';
 const TYPES = { A: 'habit', B: 'trigger', C: 'knowledge', D: 'briefing' };
 const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 'briefing', 'cc-briefing', 'fuel',
@@ -251,7 +251,7 @@ function collectLines(root) {
 /** Render the read-aloud bar; collect() returns [{text, el}] from the current page. */
 function readBar(collect) {
   const rate = S.settings.rate || 1;
-  const html = `<div class="readbar" id="readbar"><button class="btn small" id="rb-play" title="read aloud">▶</button><button class="btn small" id="rb-back" title="previous">⏮</button><button class="btn small" id="rb-next" title="next">⏭</button><button class="btn small" id="rb-stop" title="stop">⏹</button><span class="rb-state muted"></span><select id="rb-rate" title="speed">${[0.8, 0.9, 1, 1.1, 1.25, 1.5].map(r => `<option value="${r}" ${r == rate ? 'selected' : ''}>${r}×</option>`).join('')}</select></div>`;
+  const html = `<div class="readbar" id="readbar"><button class="btn small" id="rb-play" title="read aloud">▶</button><button class="btn small" id="rb-back" title="previous">⏮</button><button class="btn small" id="rb-next" title="next">⏭</button><button class="btn small" id="rb-stop" title="stop">⏹</button><span class="rb-state muted"></span><select id="rb-rate" title="speed">${[0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2].map(r => `<option value="${r}" ${r == rate ? 'selected' : ''}>${r}×</option>`).join('')}</select></div>`;
   setTimeout(() => {
     const b = document.getElementById('readbar'); if (!b) return;
     b.querySelector('#rb-play').onclick = () => { if (speech.state === 'playing') pauseSpeech(); else if (speech.state === 'paused') resumeSpeech(); else startSpeech(collect()); };
@@ -354,6 +354,8 @@ function vPlan(editId) {
 function vPrepare(id) {
   const sec = S.sectors.find(s => s.id === id); if (!sec) { location.hash = '#/'; return; }
   const list = listFor(sec); const focus = new Set(list.slice(0, 3).map(x => x.item.id));
+  const showGrad = !!S._showGrad;
+  const grads = showGrad ? withHistory(S.sectors.filter(s => seq(s) < seq(sec))).filter(x => x.h.status === 'retired' && createdSeq(x.item) < seq(sec)).sort(rank) : [];
   const station = libraryEntries('station', dest(sec));
   const wants = sec.instructor ? libraryEntries('instructor').filter(e => e.sector.instructor === sec.instructor) : [];
   view.innerHTML = h`
@@ -362,10 +364,13 @@ function vPrepare(id) {
     <p class="muted">What you have been missing, in flight order${sec.conditions.length ? `. Conditions: <b>${esc(sec.conditions.join(', '))}</b>` : ''}.</p>
     ${readBar(() => collectLines(view))}
     ${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>'}
+    <label class="check"><input type="checkbox" id="showgrad" ${showGrad ? 'checked' : ''}> Also show graduated items</label>
+    ${showGrad ? (grads.length ? groupByPhase(grads).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]} <span class="muted">graduated</span></h2><ul class="list card rv">${xs.map(x => `<li><div class="t is-note">${esc(x.item.title)}</div><div class="meta"><span class="badge retired">off the list</span><span class="miss-n">${x.h.misses}✕</span>${strip(x.h)}</div></li>`).join('')}</ul>`).join('') : '<p class="muted">Nothing graduated yet.</p>') : ''}
     <h2>${esc(dest(sec))} · ${esc(CITY[dest(sec)] || AIRPORTS[dest(sec)] || 'station notes')}</h2>
     ${station.length ? `<ul class="list card">${station.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Nothing noted about ${esc(dest(sec))} yet. Lines you add under Station specific will show here next time.</p>`}
     ${sec.instructor ? `<h2>${esc(sec.instructor)} wants</h2>${wants.length ? `<ul class="list card">${wants.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Nothing noted for ${esc(sec.instructor)} yet. Lines you add under Instructor wants will show here next time you fly with them.</p>`}` : ''}
     <div class="actions"><a class="btn primary big grow" href="#/">Done</a></div>`;
+  document.getElementById('showgrad').onchange = e => { S._showGrad = e.target.checked; rerender(); };
 }
 /** All logged lines of one category across sectors, newest first; station filtered by airport. */
 function libraryEntries(cat, station) {
@@ -385,9 +390,10 @@ function vLibrary(cat = 'missed', station) {
   const instructors = [...new Set(S.sectors.map(s => s.instructor).filter(Boolean))].sort();
   const secs = S.sectors.filter(s => !inst || s.instructor === inst);
   let rows;
+  const status = S._status || 'active';
   if (cat === 'missed') {
     // misses on flights with this instructor (or all), with counts for that subset
-    const all = withHistory().map(x => {
+    const all = withHistory().filter(x => status === 'all' || x.h.status === (status === 'active' ? 'active' : 'retired')).map(x => {
       const ev = x.h.events.filter(e => secs.includes(e.sector));
       return { ...x, n: ev.filter(e => e.ev === 'MISS').length, last: ev.filter(e => e.ev === 'MISS').at(-1)?.sector };
     }).filter(x => x.n > 0 && (!q || x.item.title.toLowerCase().includes(q))).sort((a, b) => b.n - a.n || a.item.title.localeCompare(b.item.title));
@@ -400,12 +406,14 @@ function vLibrary(cat = 'missed', station) {
     <h1>Library</h1>
     <div class="chips">${Object.keys(CATS).map(c => `<a class="chip ${c === cat ? 'on' : ''}" href="#/library/${c}">${CATS[c]}</a>`).join('')}</div>
     ${cat === 'station' ? `<div class="chips mt">${stations.map(s => `<a class="chip ${s === station ? 'on' : ''}" href="#/library/station/${s}">${s}</a>`).join('')}</div>` : ''}
+    ${cat === 'missed' ? `<div class="chips mt">${[['active', 'On the list'], ['retired', 'Graduated'], ['all', 'All']].map(([k, l]) => `<button class="chip ${status === k ? 'on' : ''}" data-status="${k}">${l}</button>`).join('')}</div>` : ''}
     ${instructors.length ? `<div class="chips mt"><button class="chip ${!inst ? 'on' : ''}" data-inst="">All instructors</button>${instructors.map(i => `<button class="chip ${i === inst ? 'on' : ''}" data-inst="${esc(i)}">${esc(i)}</button>`).join('')}</div>` : ''}
     <input id="q" class="mt" placeholder="Search…" value="${esc(S._q || '')}">
     ${readBar(() => collectLines(view))}
     <p class="muted">${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${inst ? ` · ${nSec} flight${nSec === 1 ? '' : 's'} with ${esc(inst)}` : ''}${cat === 'missed' ? ' · tap one for its history' : ''}</p>
     <ul class="list card">${rows.join('') || '<li class="empty">Nothing here.</li>'}</ul>`;
   view.querySelectorAll('[data-inst]').forEach(b => b.onclick = () => { S._inst = b.dataset.inst; vLibrary(cat, station); });
+  view.querySelectorAll('[data-status]').forEach(b => b.onclick = () => { S._status = b.dataset.status; vLibrary(cat, station); });
   document.getElementById('q').oninput = e => { S._q = e.target.value; vLibrary(cat, station); const i = document.getElementById('q'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
 }
 
