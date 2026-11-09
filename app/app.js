@@ -390,7 +390,7 @@ function vLibrary(cat = 'missed', station) {
   const instructors = [...new Set(S.sectors.map(s => s.instructor).filter(Boolean))].sort();
   const secs = S.sectors.filter(s => !inst || s.instructor === inst);
   let rows;
-  const status = S._status || 'active';
+  const status = S._status || 'active'; let count = 0;
   if (cat === 'missed') {
     // misses on flights with this instructor (or all), with counts for that subset
     const all = withHistory().filter(x => status === 'all' || x.h.status === (status === 'active' ? 'active' : 'retired')).map(x => {
@@ -399,6 +399,7 @@ function vLibrary(cat = 'missed', station) {
     }).filter(x => x.n > 0 && (!q || x.item.title.toLowerCase().includes(q))).sort((a, b) => b.n - a.n || a.item.title.localeCompare(b.item.title));
     const sortBy = S._sort || 'phase';
     const row = x => `<li><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div><div class="meta">${sortBy === 'misses' ? `<span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span>` : ''}<span class="miss-n">${x.n}✕${inst ? ' with ' + esc(inst) : ''}</span>${inst && x.h.misses !== x.n ? `<span>${x.h.misses}✕ overall</span>` : ''}${x.h.status === 'retired' ? '<span class="badge retired">off the list</span>' : ''}${strip(x.h)}</div></a></li>`;
+    count = all.length;
     rows = sortBy === 'phase'
       ? groupByPhase(all).map(([ph, xs]) => `<li class="grp"><h2>${PHASE_LABEL[ph]}</h2></li>${xs.map(row).join('')}`)
       : all.map(row);
@@ -414,7 +415,7 @@ function vLibrary(cat = 'missed', station) {
     ${instructors.length ? `<div class="chips mt"><button class="chip ${!inst ? 'on' : ''}" data-inst="">All instructors</button>${instructors.map(i => `<button class="chip ${i === inst ? 'on' : ''}" data-inst="${esc(i)}">${esc(i)}</button>`).join('')}</div>` : ''}
     <input id="q" class="mt" placeholder="Search…" value="${esc(S._q || '')}">
     ${readBar(() => collectLines(view))}
-    <p class="muted">${(() => { const n = rows.filter(r => !r.startsWith('<li class="grp"')).length; return n + (n === 1 ? ' entry' : ' entries'); })()}${inst ? ` · ${nSec} flight${nSec === 1 ? '' : 's'} with ${esc(inst)}` : ''}${cat === 'missed' ? ' · tap one for its history' : ''}</p>
+    <p class="muted">${(() => { const n = cat === 'missed' ? count : rows.length; return n + (n === 1 ? ' entry' : ' entries'); })()}${inst ? ` · ${nSec} flight${nSec === 1 ? '' : 's'} with ${esc(inst)}` : ''}${cat === 'missed' ? ' · tap one for its history' : ''}</p>
     <ul class="list card">${rows.join('') || '<li class="empty">Nothing here.</li>'}</ul>`;
   view.querySelectorAll('[data-inst]').forEach(b => b.onclick = () => { S._inst = b.dataset.inst; vLibrary(cat, station); });
   view.querySelectorAll('[data-status]').forEach(b => b.onclick = () => { S._status = b.dataset.status; vLibrary(cat, station); });
