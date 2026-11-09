@@ -194,13 +194,16 @@ document.addEventListener('click', e => { const el = e.target.closest('.t'); if 
 /** Re-render the current view without losing the scroll position. */
 function rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
 window.addEventListener('load', () => { render(); initPWA(); });
+const scrollMemo = {}; let curHash = location.hash, itemFrom = '#/items';
 function render() {
+  if (curHash !== location.hash) { scrollMemo[curHash] = window.scrollY; if (/^#\/(items|library)/.test(curHash) && /^#\/item\//.test(location.hash)) itemFrom = curHash; curHash = location.hash; }
   const [path, a1, a2] = location.hash.replace(/^#\/?/, '').split('/');
   const tab = { '': 'home', home: 'home', plan: 'home', prepare: 'home', debrief: 'home', sector: 'home', items: 'items', item: 'items', library: 'library', trends: 'trends', settings: 'settings' }[path] || 'home';
   document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
   const routes = { '': vHome, home: vHome, plan: vPlan, prepare: vPrepare, debrief: vDebrief, sector: vSector, items: vItems, item: vItem, library: vLibrary, trends: vTrends, settings: vSettings };
   (routes[path] || vHome)(a1, a2);
-  window.scrollTo(0, 0);
+  // lists remember where you were; everything else opens at the top
+  window.scrollTo(0, /^#\/(items|library)/.test(location.hash) ? (scrollMemo[location.hash] || 0) : 0);
 }
 
 // ============================================================ home
@@ -500,7 +503,7 @@ function vItem(id) {
   f.onsubmit = e => { e.preventDefault(); if (f.title.value.trim() !== it.title) it.titleEdited = true; it.title = f.title.value.trim() || it.title; it.cue = f.cue.value.trim(); it.type = f.type.value; it.phase = f.phase.value; save(); toast('Saved'); };
   document.getElementById('tog').onclick = () => { if (hh.status === 'active') { it.manualRetiredSeq = markSeq(); delete it.manualActiveSeq; } else { it.manualActiveSeq = markSeq(); delete it.manualRetiredSeq; } save(); rerender(); };
   view.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => moveItem(it, b.dataset.mv));
-  document.getElementById('del').onclick = () => { if (!confirm('Delete this item and unlink its logs?')) return; for (const s of S.sectors) { delete s.recall[id]; s.logs.forEach(l => { if (l.itemId === id) l.itemId = null; }); } delete S.items[id]; save(); location.hash = '#/items'; };
+  document.getElementById('del').onclick = () => { if (!confirm('Delete this item and unlink its logs?')) return; for (const s of S.sectors) { delete s.recall[id]; s.logs.forEach(l => { if (l.itemId === id) l.itemId = null; }); } delete S.items[id]; save(); location.hash = itemFrom; };
 }
 
 /** Turn a recall item into a library note of the given category, keeping the sectors it was logged in. */
@@ -515,7 +518,7 @@ function moveItem(it, cat) {
     if (s) s.logs.push({ id: uid(), itemId: null, cat, type: 'C', phase: it.phase, text: it.title, good: false, dest: cat === 'station' });
   }
   delete S.items[it.id]; save();
-  toast(`Moved to ${CATS[cat]}`); location.hash = '#/library/' + cat;
+  toast(`Moved to ${CATS[cat]}`); location.hash = itemFrom;
 }
 
 // ============================================================ trends
