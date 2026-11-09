@@ -209,3 +209,10 @@ li.chk.MISS .t { color: var(--miss); } li.chk.HIT .t { color: var(--ink-2); }
 
 .t.open { -webkit-line-clamp: unset; display: block; }
 .t { cursor: default; }
+
+/* ---- read aloud ---- */
+.readbar { display: flex; align-items: center; gap: 6px; margin: 8px 0 4px; position: sticky; top: calc(48px + env(safe-area-inset-top)); z-index: 4; background: var(--bg); padding: 6px 0; }
+.readbar .btn.small { min-width: 42px; padding: 0 8px; font-size: 16px; }
+.readbar select { width: auto; min-height: 38px; padding: 4px 8px; font-size: 13px; margin-left: auto; }
+.readbar.on #rb-play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.speaking { background: var(--accent-bg) !important; border-radius: 8px; box-shadow: 0 0 0 6px var(--accent-bg); }

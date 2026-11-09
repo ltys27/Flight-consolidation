@@ -5,7 +5,7 @@
 'use strict';
 
 const KEY = 'cup-debrief-v1';
-const APP_VERSION = '20';
+const APP_VERSION = '21';
 const BASE = 'SIN';
 const TYPES = { A: 'habit', B: 'trigger', C: 'knowledge', D: 'briefing' };
 const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 'briefing', 'cc-briefing', 'fuel',
@@ -194,6 +194,65 @@ function swipeCard(card, onRight, onLeft) {
   card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
 }
 
+// ============================================================ read aloud (on-device speech, works offline)
+const speech = { lines: [], idx: 0, state: 'idle', bar: null };
+function voiceFor() {
+  const vs = speechSynthesis.getVoices(); const lang = S.settings.voiceLang || 'en-GB';
+  return vs.find(v => v.lang === lang && !v.localService === false) || vs.find(v => v.lang === lang) || vs.find(v => v.lang.startsWith('en')) || null;
+}
+function speakLine() {
+  if (speech.state !== 'playing') return;
+  if (speech.idx >= speech.lines.length) { stopSpeech(); return; }
+  const line = speech.lines[speech.idx];
+  document.querySelectorAll('.speaking').forEach(e => e.classList.remove('speaking'));
+  if (line.el) { line.el.classList.add('speaking'); line.el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  const u = new SpeechSynthesisUtterance(line.text);
+  u.rate = +(S.settings.rate || 1); const v = voiceFor(); if (v) u.voice = v; u.lang = v ? v.lang : 'en-GB';
+  u.onend = () => { if (speech.state === 'playing') { speech.idx++; speakLine(); } };
+  u.onerror = e => { if (e.error !== 'interrupted' && e.error !== 'canceled') { toast('Speech failed: ' + e.error); stopSpeech(); } };
+  speechSynthesis.speak(u);
+  updateBar();
+}
+function startSpeech(lines) {
+  if (!('speechSynthesis' in window)) { toast('No speech on this device'); return; }
+  speechSynthesis.cancel(); speech.lines = lines; speech.idx = 0; speech.state = 'playing'; speakLine();
+}
+function pauseSpeech() { if (speech.state === 'playing') { speech.state = 'paused'; speechSynthesis.cancel(); updateBar(); } }
+function resumeSpeech() { if (speech.state === 'paused') { speech.state = 'playing'; speakLine(); } }
+function skipSpeech(n) { if (speech.state === 'idle') return; speechSynthesis.cancel(); speech.idx = Math.max(0, speech.idx + n); if (speech.state === 'playing') speakLine(); else updateBar(); }
+function stopSpeech() { speech.state = 'idle'; speech.idx = 0; if ('speechSynthesis' in window) speechSynthesis.cancel(); document.querySelectorAll('.speaking').forEach(e => e.classList.remove('speaking')); updateBar(); }
+function updateBar() {
+  const b = document.getElementById('readbar'); if (!b) return;
+  const n = speech.lines.length, i = Math.min(speech.idx + 1, n);
+  b.querySelector('.rb-state').textContent = speech.state === 'idle' ? '' : `${i} / ${n}`;
+  b.querySelector('#rb-play').textContent = speech.state === 'playing' ? '⏸' : '▶';
+  b.classList.toggle('on', speech.state !== 'idle');
+}
+/** Headings and lines on the page, in order, for reading aloud. */
+function collectLines(root) {
+  const out = [];
+  root.querySelectorAll('h2, .t').forEach(el => {
+    if (el.closest('#readbar')) return;
+    const text = el.textContent.replace(/\s+/g, ' ').trim(); if (!text) return;
+    out.push({ text: el.tagName === 'H2' ? text.replace(/·/g, ',') + '.' : text, el });
+  });
+  return out;
+}
+/** Render the read-aloud bar; collect() returns [{text, el}] from the current page. */
+function readBar(collect) {
+  const rate = S.settings.rate || 1;
+  const html = `<div class="readbar" id="readbar"><button class="btn small" id="rb-play" title="read aloud">▶</button><button class="btn small" id="rb-back" title="previous">⏮</button><button class="btn small" id="rb-next" title="next">⏭</button><button class="btn small" id="rb-stop" title="stop">⏹</button><span class="rb-state muted"></span><select id="rb-rate" title="speed">${[0.8, 0.9, 1, 1.1, 1.25, 1.5].map(r => `<option value="${r}" ${r == rate ? 'selected' : ''}>${r}×</option>`).join('')}</select></div>`;
+  setTimeout(() => {
+    const b = document.getElementById('readbar'); if (!b) return;
+    b.querySelector('#rb-play').onclick = () => { if (speech.state === 'playing') pauseSpeech(); else if (speech.state === 'paused') resumeSpeech(); else startSpeech(collect()); };
+    b.querySelector('#rb-back').onclick = () => skipSpeech(-1); b.querySelector('#rb-next').onclick = () => skipSpeech(1); b.querySelector('#rb-stop').onclick = stopSpeech;
+    b.querySelector('#rb-rate').onchange = e => { S.settings.rate = +e.target.value; save(); if (speech.state === 'playing') { speechSynthesis.cancel(); speakLine(); } };
+    updateBar();
+  }, 0);
+  return html;
+}
+window.addEventListener('hashchange', () => stopSpeech());
+
 // ============================================================ router
 window.addEventListener('hashchange', render);
 // tap a clamped title to show the whole thing (titles inside links open their page instead)
@@ -291,6 +350,7 @@ function vPrepare(id) {
     <a href="#/" class="back">‹ Home</a>
     <h1 class="m0">Review · S${sec.number} ${esc(dest(sec))}</h1>
     <p class="muted">What you have been missing, in flight order${sec.conditions.length ? `. Conditions: <b>${esc(sec.conditions.join(', '))}</b>` : ''}.</p>
+    ${readBar(() => collectLines(view))}
     ${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card rv">${xs.map(x => `<li><div class="t">${esc(x.item.cue ? `when ${x.item.cue}` : x.item.title)}</div>${x.item.cue ? `<div class="muted">${esc(x.item.title)}</div>` : ''}<div class="meta">${focus.has(x.item.id) ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></li>`).join('')}</ul>`).join('') || '<p class="empty">Nothing on the list.</p>'}
     <h2>${esc(dest(sec))} · ${esc(CITY[dest(sec)] || AIRPORTS[dest(sec)] || 'station notes')}</h2>
     ${station.length ? `<ul class="list card">${station.map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number}</span><span>${fmtDate(e.sector.date)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Nothing noted about ${esc(dest(sec))} yet. Lines you add under Station specific will show here next time.</p>`}
@@ -332,6 +392,7 @@ function vLibrary(cat = 'missed', station) {
     ${cat === 'station' ? `<div class="chips mt">${stations.map(s => `<a class="chip ${s === station ? 'on' : ''}" href="#/library/station/${s}">${s}</a>`).join('')}</div>` : ''}
     ${instructors.length ? `<div class="chips mt"><button class="chip ${!inst ? 'on' : ''}" data-inst="">All instructors</button>${instructors.map(i => `<button class="chip ${i === inst ? 'on' : ''}" data-inst="${esc(i)}">${esc(i)}</button>`).join('')}</div>` : ''}
     <input id="q" class="mt" placeholder="Search…" value="${esc(S._q || '')}">
+    ${readBar(() => collectLines(view))}
     <p class="muted">${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${inst ? ` · ${nSec} flight${nSec === 1 ? '' : 's'} with ${esc(inst)}` : ''}${cat === 'missed' ? ' · tap one for its history' : ''}</p>
     <ul class="list card">${rows.join('') || '<li class="empty">Nothing here.</li>'}</ul>`;
   view.querySelectorAll('[data-inst]').forEach(b => b.onclick = () => { S._inst = b.dataset.inst; vLibrary(cat, station); });
