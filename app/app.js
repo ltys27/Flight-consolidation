@@ -37,9 +37,18 @@ function normalize(d) {
   d.settings = Object.assign({ graduateAfter: 2 }, d.settings || {});
   d.items = d.items || {};
   d.sectors = (d.sectors || []).map(s => Object.assign({ recall: {}, logs: [], conditions: [], emphasis: '', next: '' }, s));
-  d.sectors.sort((a, b) => a.number - b.number);
+  d.sectors.sort(bySeq);
+  for (const i of Object.values(d.items)) { // older versions stored a sector number
+    for (const [old, nw] of [['manualRetiredAt', 'manualRetiredSeq'], ['manualActiveAt', 'manualActiveSeq']]) {
+      if (typeof i[old] === 'number') { const s = d.sectors.find(x => x.number === i[old] - 1); i[nw] = (s ? seq(s) : '') + '~'; delete i[old]; }
+    }
+  }
   return d;
 }
+const seq = s => `${s.date || ''}|${String(s.number || 0).padStart(4, '0')}`;
+const bySeq = (a, b) => seq(a) < seq(b) ? -1 : seq(a) > seq(b) ? 1 : 0;
+/** Sequence key of the flight an item was created on ('' = before everything). */
+function createdSeq(item) { const s = item.createdSectorId ? S.sectors.find(x => x.id === item.createdSectorId) : S.sectors.find(x => x.number === item.createdSector); return s ? seq(s) : ''; }
 const clean = (k, v) => k.startsWith('_') ? undefined : v;
 const serial = d => JSON.stringify(d, clean);
 let hashes = {};
@@ -72,30 +81,32 @@ const debriefed = sec => Object.keys(sec.recall).length > 0 || sec.logs.length >
 function history(item, sectors = S.sectors) {
   const n = S.settings.graduateAfter;
   const out = { events: [], misses: 0, streak: 0, status: 'active', lastMiss: null };
-  let retired = false;
+  let retired = false, mr = item.manualRetiredSeq || null, ma = item.manualActiveSeq || null;
+  const applyMarkers = upTo => { // markers sit between flights; apply those that fall before `upTo`
+    if (mr && (upTo === null || mr < upTo)) { retired = true; mr = null; }
+    if (ma && (upTo === null || ma < upTo)) { retired = false; out.streak = 0; ma = null; }
+  };
   for (const sec of sectors) {
-    if (sec.number < (item.createdSector || 0) || !debriefed(sec)) continue;
+    if (seq(sec) < createdSeq(item) || !debriefed(sec)) continue;
+    applyMarkers(seq(sec));
     const ev = eventFor(item, sec);
     out.events.push({ sector: sec, ev });
-    if (item.manualRetiredAt === sec.number) retired = true;
-    if (item.manualActiveAt === sec.number) { retired = false; out.streak = 0; }
     if (ev === 'MISS') { out.misses++; out.streak = 0; out.lastMiss = sec.number; retired = false; }
     else if (ev === 'HIT') { out.streak++; if (!retired && out.streak >= n) retired = true; }
     else if (!retired) out.streak = 0;
   }
-  const lastN = sectors.filter(debriefed).at(-1)?.number ?? 0;
-  if (item.manualRetiredAt && item.manualRetiredAt > lastN) retired = true;
-  if (item.manualActiveAt && item.manualActiveAt > lastN) retired = false;
+  applyMarkers(null);
   out.status = retired ? 'retired' : 'active';
   return out;
 }
+const markSeq = () => (S.sectors.filter(debriefed).map(seq).sort().at(-1) || '') + '~';
 const withHistory = (sectors = S.sectors) => Object.values(S.items).filter(i => i.recall !== false).map(i => ({ item: i, h: history(i, sectors) }));
 const rank = (a, b) => b.h.misses - a.h.misses || (b.h.lastMiss || 0) - (a.h.lastMiss || 0) || a.item.title.localeCompare(b.item.title);
 const activeItems = (sectors = S.sectors) => withHistory(sectors).filter(x => x.h.status === 'active').sort(rank);
 /** Recall list as it stood before this sector (so the current sector's scores don't reorder it). */
 function listFor(sec) {
-  const before = S.sectors.filter(s => s.number < sec.number);
-  const list = activeItems(before).filter(x => x.item.createdSector < sec.number);
+  const before = S.sectors.filter(s => seq(s) < seq(sec));
+  const list = activeItems(before).filter(x => createdSeq(x.item) < seq(sec));
   for (const id of Object.keys(sec.recall)) if (!list.some(x => x.item.id === id) && S.items[id]) list.push({ item: S.items[id], h: history(S.items[id], before) });
   return list;
 }
@@ -219,7 +230,7 @@ function vHome() {
 function deleteSector(id) {
   const i = S.sectors.findIndex(s => s.id === id); if (i < 0) return;
   const [sec] = S.sectors.splice(i, 1); save(); rerender();
-  toast(`Deleted S${sec.number} ${sec.route}`, () => { S.sectors.splice(i, 0, sec); S.sectors.sort((a, b) => a.number - b.number); save(); });
+  toast(`Deleted S${sec.number} ${sec.route}`, () => { S.sectors.splice(i, 0, sec); S.sectors.sort(bySeq); save(); });
 }
 
 // ============================================================ plan (new / edit flight)
@@ -237,7 +248,7 @@ function vPlan(editId) {
     <form id="f" class="card stack">
       <label class="f">Destination <span class="muted">from ${BASE}</span><select name="dest">${sec ? '' : '<option value="" selected disabled>Choose…</option>'}${opt(dests, curDest, '+ other airport…', v => `${v} · ${CITY[v] || AIRPORTS[v] || ''}`)}</select><input name="destOther" placeholder="IATA code, e.g. KUL" maxlength="4" style="text-transform:uppercase;display:none"></label>
       <div class="row"><label class="f grow">Date<input name="date" type="date" value="${sec ? esc(sec.date) : new Date().toISOString().slice(0, 10)}" required></label>
-      <label class="f" style="width:96px">Sector<input name="number" type="number" value="${sec ? sec.number : (last?.number || 0) + 1}" required></label></div>
+      <label class="f" style="width:96px">Sector<input name="number" type="number" value="${sec ? sec.number : Math.max(0, ...S.sectors.map(s => s.number)) + 1}" required></label></div>
       <label class="f">Instructor<select name="inst">${opt(instructors, curInst, '+ new instructor…')}</select><input name="instOther" placeholder="Name" style="display:none"></label>
       <label class="f">Conditions <span class="muted">picks the if-thens to rehearse</span><div class="chips" id="conds">${CONDITIONS.map(c => `<button type="button" class="chip ${sec?.conditions.includes(c) ? 'on' : ''}" data-c="${c}">${c}</button>`).join('')}</div></label>
       <button class="btn primary big block" type="submit">${sec ? 'Save' : 'Save flight'}</button>
@@ -254,7 +265,7 @@ function vPlan(editId) {
     const instructor = (f.inst.value === '__other' ? f.instOther.value : f.inst.value || '').trim();
     const data = { number: +f.number.value, route: `${BASE}-${d}`, date: f.date.value, instructor, conditions: [...conds] };
     if (sec) { Object.assign(sec, data); } else S.sectors.push(Object.assign({ id: 's' + uid(), recall: {}, logs: [], emphasis: '', next: '', createdAt: Date.now() }, data));
-    S.sectors.sort((a, b) => a.number - b.number); save(); location.hash = '#/';
+    S.sectors.sort(bySeq); save(); location.hash = '#/';
   };
 }
 
@@ -321,7 +332,7 @@ function vDebrief(id, stepStr) {
   const names = ['Check the list', 'Log', 'Done'];
   const head = () => h`<div class="row between"><a href="#/" class="back">‹ Home</a><span class="muted">${sec.number}. ${esc(sec.route)}</span></div>
     <div class="steps">${names.map((n, i) => `<span class="${i === step ? 'on' : i < step ? 'done' : ''}">${i + 1}<em>${n}</em></span>`).join('')}</div>`;
-  const setScore = (iid, r) => { if (r) sec.recall[iid] = r; else delete sec.recall[iid]; if (r === 'MISS' && S.items[iid]?.manualRetiredAt) delete S.items[iid].manualRetiredAt; save(); };
+  const setScore = (iid, r) => { if (r) sec.recall[iid] = r; else delete sec.recall[iid]; if (r === 'MISS' && S.items[iid]?.manualRetiredSeq) delete S.items[iid].manualRetiredSeq; save(); };
 
   // ---- step 0: every item on the list gets an explicit answer ----
   if (step === 0) {
@@ -349,7 +360,7 @@ function vDebrief(id, stepStr) {
   if (step === 1) {
     const inList = new Set(list.map(x => x.item.id));
     const newLogs = sec.logs.filter(l => !(l.itemId && inList.has(l.itemId)));
-    const line = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t ${catOf(l) === 'missed' ? '' : 'is-note'}">${esc(l.text)}</div><div class="meta">${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? `<span>${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}${l.itemId && S.items[l.itemId] && S.items[l.itemId].createdSector !== sec.number ? `<span>↩ repeat of ${esc(S.items[l.itemId].title)}</span>` : ''}</div></div>${catOf(l) === 'missed' ? '<span class="tick miss">✕</span>' : ''}</div></li>`;
+    const line = l => `<li class="newlog" data-log="${l.id}"><div class="row between"><div class="grow"><div class="t ${catOf(l) === 'missed' ? '' : 'is-note'}">${esc(l.text)}</div><div class="meta">${catOf(l) === 'missed' && l.phase && l.phase !== 'general' ? `<span>${esc(PHASE_LABEL[l.phase] || l.phase)}</span>` : ''}${l.itemId && S.items[l.itemId] && !(S.items[l.itemId].createdSectorId === sec.id || (!S.items[l.itemId].createdSectorId && S.items[l.itemId].createdSector === sec.number)) ? `<span>↩ repeat of ${esc(S.items[l.itemId].title)}</span>` : ''}</div></div>${catOf(l) === 'missed' ? '<span class="tick miss">✕</span>' : ''}</div></li>`;
     const input = cat => `<li class="addline"><form data-cat="${cat}"><input placeholder="${cat === 'missed' ? 'Something new you missed…' : cat === 'technique' ? 'Technique to improve…' : cat === 'knowledge' ? 'Something new you learned…' : `Something specific to ${esc(dest(sec))}…`}" autocomplete="off" enterkeyhint="done">${cat === 'missed' ? `<select name="phase" title="phase">${PHASE_ORDER.map(p => `<option value="${p}" ${p === (sec._ph || 'general') ? 'selected' : ''}>${p === 'general' ? 'phase…' : PHASE_LABEL[p]}</option>`).join('')}</select>` : ''}</form><div class="sug"></div></li>`;
     const byCat = cat => newLogs.filter(l => catOf(l) === cat);
     view.innerHTML = head() + h`
@@ -366,7 +377,7 @@ function vDebrief(id, stepStr) {
     document.getElementById('emph').onchange = e => { sec.emphasis = e.target.value; save(); };
     view.querySelectorAll('li.newlog').forEach(li => swipeRow(li, 'Delete', () => {
       const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1); let removed = null;
-      if (l.itemId && S.items[l.itemId]?.createdSector === sec.number && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { removed = S.items[l.itemId]; delete S.items[l.itemId]; }
+      if (l.itemId && (S.items[l.itemId]?.createdSectorId === sec.id || S.items[l.itemId]?.createdSector === sec.number) && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { removed = S.items[l.itemId]; delete S.items[l.itemId]; }
       save(); redraw(); toast('Deleted', () => { sec.logs.splice(i, 0, l); if (removed) S.items[removed.id] = removed; save(); });
     }));
     view.querySelectorAll('li.addline form').forEach(f => {
@@ -384,7 +395,7 @@ function vDebrief(id, stepStr) {
         const ph = f.phase ? f.phase.value : 'general';
         if (linked) { setScore(linked, 'MISS'); inp.value = ''; sug.innerHTML = ''; linked = null; toast('Marked as missed again'); return; }
         const log = { id: uid(), itemId: null, cat, type: cat === 'missed' ? 'A' : 'C', phase: ph, text, good: false, dest: cat === 'station' };
-        if (cat === 'missed') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: ph, cue: '', recall: true, createdSector: sec.number }; log.itemId = iid; }
+        if (cat === 'missed') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: ph, cue: '', recall: true, createdSector: sec.number, createdSectorId: sec.id }; log.itemId = iid; }
         sec.logs.push(log); save(); redraw();
         const again = view.querySelector(`li.addline form[data-cat="${cat}"] input`); if (again) again.focus();
       };
@@ -396,7 +407,7 @@ function vDebrief(id, stepStr) {
   // ---- step 2: done ----
   const m = sectorMisses(sec); const sc = sectorScored(sec);
   const grads = withHistory().filter(x => x.h.status === 'retired' && x.h.events.at(-1)?.sector.id === sec.id && x.h.events.at(-1)?.ev === 'HIT');
-  const newCount = sec.logs.filter(l => l.itemId && S.items[l.itemId]?.createdSector === sec.number).length;
+  const newCount = sec.logs.filter(l => l.itemId && (S.items[l.itemId]?.createdSectorId === sec.id || (!S.items[l.itemId]?.createdSectorId && S.items[l.itemId]?.createdSector === sec.number))).length;
   view.innerHTML = head() + h`
     <h1>${sec.number}. ${esc(sec.route)} debriefed</h1>
     <div class="kpis"><div class="kpi"><b>${m}</b><span>missed</span></div><div class="kpi"><b>${sc.hits}</b><span>didn't miss</span></div><div class="kpi"><b>${newCount}</b><span>new on list</span></div><div class="kpi"><b>${grads.length}</b><span>off the list</span></div></div>
@@ -460,16 +471,15 @@ function vItems(filter = 'active') {
     <p class="hint">${filter === 'active' ? `${S.settings.graduateAfter} hits in a row graduates an item; a miss brings it back. Swipe left to graduate by hand.` : 'Swipe left to pull an item back onto the list.'}</p>
     <div id="il">${groupByPhase(list).map(([ph, xs]) => `<h2>${PHASE_LABEL[ph]}</h2><ul class="list card">${xs.map(x => `<li data-id="${x.item.id}" class="${filter === 'active' && list.indexOf(x) < 3 ? 'is-focus' : ''}"><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div>${x.item.cue ? `<div class="cue">when ${esc(x.item.cue)}</div>` : ''}<div class="meta">${filter === 'active' && list.indexOf(x) < 3 ? '<span class="badge focus">Focus</span>' : ''}<span class="miss-n">${x.h.misses}✕</span>${x.h.streak ? `<span class="streak">${x.h.streak} clean</span>` : ''}${strip(x.h)}</div></a></li>`).join('')}</ul>`).join('') || '<p class="empty">Empty.</p>'}</div>`;
   view.querySelectorAll('.subtabs button').forEach(b => b.onclick = () => location.hash = `#/items/${b.dataset.f}`);
-  const lastN = (S.sectors.filter(debriefed).at(-1)?.number ?? 0) + 1;
   view.querySelectorAll('#il li[data-id]').forEach(li => swipeRow(li, filter === 'active' ? 'Graduate' : 'Pull back', () => {
     const it = S.items[li.dataset.id];
-    if (filter === 'active') { it.manualRetiredAt = lastN; delete it.manualActiveAt; } else { it.manualActiveAt = lastN; delete it.manualRetiredAt; }
-    save(); rerender(); toast(filter === 'active' ? 'Graduated' : 'Back on the list', () => { if (filter === 'active') delete it.manualRetiredAt; else delete it.manualActiveAt; save(); });
+    if (filter === 'active') { it.manualRetiredSeq = markSeq(); delete it.manualActiveSeq; } else { it.manualActiveSeq = markSeq(); delete it.manualRetiredSeq; }
+    save(); rerender(); toast(filter === 'active' ? 'Graduated' : 'Back on the list', () => { if (filter === 'active') delete it.manualRetiredSeq; else delete it.manualActiveSeq; save(); });
   }, filter === 'active' ? 'ok' : 'warn'));
 }
 function vItem(id) {
   const it = S.items[id]; if (!it) { location.hash = '#/items'; return; }
-  const hh = history(it); const lastN = (S.sectors.filter(debriefed).at(-1)?.number ?? 0) + 1;
+  const hh = history(it);
   view.innerHTML = h`
     <a href="#/items" class="back">‹ Recall list</a>
     <h1>${esc(it.title)}</h1>
@@ -486,7 +496,7 @@ function vItem(id) {
     <ul class="list card">${hh.events.slice().reverse().map(e => `<li class="row between"><span>S${e.sector.number} · ${esc(dest(e.sector))} <span class="muted">${fmtDate(e.sector.date)}</span></span><span class="cell ${e.ev === 'MISS' ? 'X' : e.ev === 'HIT' ? 'H' : ''} wide">${e.ev || 'n/a'}</span></li>`).join('') || '<li class="empty">No debriefed sectors since this item was created.</li>'}</ul>`;
   const f = document.getElementById('ef');
   f.onsubmit = e => { e.preventDefault(); if (f.title.value.trim() !== it.title) it.titleEdited = true; it.title = f.title.value.trim() || it.title; it.cue = f.cue.value.trim(); it.type = f.type.value; it.phase = f.phase.value; save(); toast('Saved'); };
-  document.getElementById('tog').onclick = () => { if (hh.status === 'active') { it.manualRetiredAt = lastN; delete it.manualActiveAt; } else { it.manualActiveAt = lastN; delete it.manualRetiredAt; } save(); rerender(); };
+  document.getElementById('tog').onclick = () => { if (hh.status === 'active') { it.manualRetiredSeq = markSeq(); delete it.manualActiveSeq; } else { it.manualActiveSeq = markSeq(); delete it.manualRetiredSeq; } save(); rerender(); };
   view.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => moveItem(it, b.dataset.mv));
   document.getElementById('del').onclick = () => { if (!confirm('Delete this item and unlink its logs?')) return; for (const s of S.sectors) { delete s.recall[id]; s.logs.forEach(l => { if (l.itemId === id) l.itemId = null; }); } delete S.items[id]; save(); location.hash = '#/items'; };
 }
@@ -522,7 +532,7 @@ function vTrends() {
     <div class="kpis"><div class="kpi"><b>${secs.length}</b><span>sectors</span></div><div class="kpi"><b>${all.filter(x => x.h.status === 'active').length}</b><span>on recall</span></div><div class="kpi"><b>${all.length - all.filter(x => x.h.status === 'active').length}</b><span>graduated</span></div><div class="kpi"><b>${all.filter(x => x.h.misses >= 2).length}</b><span>repeat misses</span></div></div>
     <h2>Misses per sector</h2><div class="card">${barChart(secs.map(s => 'S' + s.number), misses, v => v)}</div>
     <h2>Recall hit rate</h2><div class="card">${rate.some(r => r !== null) ? barChart(secs.map(s => 'S' + s.number), rate.map(r => r === null ? 0 : Math.round(r * 100)), v => v + '%', 100) : '<p class="empty">Score a recall list to see this.</p>'}</div>
-    <h2>Repeat offenders</h2><div class="card heat"><table><tr><th></th>${secs.map(s => `<th class="s">${s.number}</th>`).join('')}</tr>${top.map(x => `<tr><th><a href="#/item/${x.item.id}">${esc(x.item.title)}</a></th>${secs.map(s => { const e = s.number < x.item.createdSector ? null : eventFor(x.item, s); return `<td class="${e === 'MISS' ? 'X' : e === 'HIT' ? 'H' : ''}">${e === 'MISS' ? '✕' : e === 'HIT' ? '✓' : ''}</td>`; }).join('')}</tr>`).join('')}</table><p class="muted">✕ miss · ✓ hit · blank = not logged</p></div>
+    <h2>Repeat offenders</h2><div class="card heat"><table><tr><th></th>${secs.map(s => `<th class="s">${s.number}</th>`).join('')}</tr>${top.map(x => `<tr><th><a href="#/item/${x.item.id}">${esc(x.item.title)}</a></th>${secs.map(s => { const e = seq(s) < createdSeq(x.item) ? null : eventFor(x.item, s); return `<td class="${e === 'MISS' ? 'X' : e === 'HIT' ? 'H' : ''}">${e === 'MISS' ? '✕' : e === 'HIT' ? '✓' : ''}</td>`; }).join('')}</tr>`).join('')}</table><p class="muted">✕ miss · ✓ hit · blank = not logged</p></div>
     ${byInst.length > 1 ? `<h2>Misses per flight, by instructor</h2><div class="card">${byInst.map(([i, v]) => `<div class="hbar"><span>${esc(i)}</span><div class="track"><div class="fill" style="width:${v.avg / imax * 100}%"></div></div><b>${v.avg.toFixed(1)} <span class="muted">/ ${v.n}</span></b></div>`).join('')}<p class="muted">average misses per flight · number of flights</p></div>` : ''}
     <h2>Misses by phase</h2><div class="card">${phases.map(([p, n]) => `<div class="hbar"><span>${esc(p)}</span><div class="track"><div class="fill" style="width:${n / pmax * 100}%"></div></div><b>${n}</b></div>`).join('')}</div>`;
 }
