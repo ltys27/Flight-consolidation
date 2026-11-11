@@ -219,3 +219,9 @@ li.chk.MISS .t { color: var(--miss); } li.chk.HIT .t { color: var(--ink-2); }
 
 .list li.grp { padding: 14px 0 4px; border-top: 0; } .list li.grp h2 { margin: 0; } .list li.grp + li { border-top: 0; }
 .chips .sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; align-self: center; }
+
+/* ---- swipe action strip ---- */
+.swipe-acts { position: absolute; top: 0; right: 0; bottom: 0; display: flex; }
+.swipe-acts button { width: 72px; border: 0; color: #fff; font: inherit; font-size: 13px; font-weight: 700; background: var(--ink-3); }
+.swipe-acts .edit { background: var(--accent); } .swipe-acts .del { background: var(--miss); } .swipe-acts .ok { background: var(--hit); } .swipe-acts .warn { background: #b45309; }
+.editline textarea { min-height: 64px; } .editline select { flex: 1; min-height: 40px; font-size: 14px; }

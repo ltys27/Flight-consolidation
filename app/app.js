@@ -5,7 +5,7 @@
 'use strict';
 
 const KEY = 'cup-debrief-v1';
-const APP_VERSION = '24';
+const APP_VERSION = '25';
 const BASE = 'SIN';
 const TYPES = { A: 'habit', B: 'trigger', C: 'knowledge', D: 'briefing' };
 const PHASES = ['general', 'preflight', 'prelims', 'cockpit-prep', 'box-setup', 'briefing', 'cc-briefing', 'fuel',
@@ -176,6 +176,60 @@ function swipeRow(li, label, action, cls = 'del') {
   li.addEventListener('click', e => { if (drag) { e.preventDefault(); e.stopPropagation(); } }, true);
   act.onclick = () => action();
 }
+/** Swipe left to reveal a strip of actions; tap one to act, tap elsewhere to close. */
+let openSwipe = null;
+function swipeActions(li, actions) {
+  const inner = li.firstElementChild; let x0 = null, y0 = null, dx = 0, drag = false, open = false, horiz = null;
+  const strip = document.createElement('div'); strip.className = 'swipe-acts';
+  strip.innerHTML = actions.map((a, i) => `<button type="button" class="${a.cls || ''}" data-i="${i}">${a.label}</button>`).join('');
+  li.appendChild(strip); li.classList.add('swipe');
+  const W = strip.children.length * 72;
+  for (const a of [inner, ...inner.querySelectorAll('a')]) if (a.tagName === 'A') { a.draggable = false; a.addEventListener('dragstart', e => e.preventDefault()); }
+  const snap = o => { open = o; inner.style.transition = 'transform .18s'; inner.style.transform = o ? `translateX(-${W}px)` : ''; if (o) { if (openSwipe && openSwipe !== close) openSwipe(); openSwipe = close; } else if (openSwipe === close) openSwipe = null; };
+  const close = () => snap(false);
+  li.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && e.button !== 0) return; x0 = e.clientX; y0 = e.clientY; dx = 0; drag = false; horiz = null; inner.style.transition = 'none'; });
+  li.addEventListener('pointermove', e => {
+    if (x0 === null) return; dx = e.clientX - x0; const dy = e.clientY - y0;
+    if (horiz === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) horiz = Math.abs(dx) > Math.abs(dy);
+    if (!horiz) return;
+    if (!drag) { drag = true; li.setPointerCapture(e.pointerId); }
+    const base = open ? -W : 0; inner.style.transform = `translateX(${Math.max(-W - 20, Math.min(0, base + dx))}px)`;
+  });
+  const end = () => { if (x0 === null) return; const base = open ? -W : 0; x0 = null; if (drag) snap(base + dx < -W / 2); };
+  li.addEventListener('pointerup', end); li.addEventListener('pointercancel', end);
+  inner.addEventListener('click', e => { if (drag || open) { e.preventDefault(); e.stopPropagation(); if (open) close(); } }, true);
+  strip.querySelectorAll('button').forEach(b => b.onclick = e => { e.stopPropagation(); close(); actions[+b.dataset.i].fn(); });
+}
+document.addEventListener('pointerdown', e => { if (openSwipe && !e.target.closest('li.swipe')) openSwipe(); });
+/** Replace a line with an in-place editor. */
+function editLine(li, log, sec, after) {
+  const inner = li.firstElementChild; const cats = Object.keys(CATS);
+  inner.innerHTML = `<form class="editline stack"><textarea rows="2">${esc(log.text)}</textarea>
+    <div class="row"><select name="cat">${cats.map(c => `<option value="${c}" ${catOf(log) === c ? 'selected' : ''}>${CATS[c]}</option>`).join('')}</select>${catOf(log) === 'missed' ? `<select name="phase">${PHASE_ORDER.map(ph => `<option value="${ph}" ${ph === log.phase ? 'selected' : ''}>${PHASE_LABEL[ph]}</option>`).join('')}</select>` : ''}</div>
+    <div class="row"><button type="button" class="btn small" data-x="cancel">Cancel</button><button type="submit" class="btn small primary grow">Save</button></div></form>`;
+  const f = inner.querySelector('form'); f.querySelector('textarea').focus();
+  f.querySelector('[data-x=cancel]').onclick = () => after();
+  f.onsubmit = e => {
+    e.preventDefault(); const text = f.querySelector('textarea').value.trim(); if (!text) return;
+    const cat = f.cat.value, was = catOf(log);
+    log.text = text; if (f.phase) log.phase = f.phase.value;
+    if (cat !== was) {
+      if (was === 'missed' && log.itemId) { // leaving the recall list: unlink (item stays unless it has no other lines)
+        const id = log.itemId; log.itemId = null; delete sec.recall[id];
+        if (!S.sectors.some(s => s.logs.some(o => o !== log && o.itemId === id))) delete S.items[id];
+      }
+      log.cat = cat; log.dest = cat === 'station'; log.type = cat === 'missed' ? 'A' : 'C';
+      if (cat === 'missed') { let iid = slugify(text); while (S.items[iid]) iid = slugify(text) + '-' + uid().slice(0, 3); S.items[iid] = { id: iid, title: text, type: 'A', phase: log.phase || 'general', cue: '', recall: true, createdSector: sec.number, createdSectorId: sec.id }; log.itemId = iid; }
+    } else if (log.itemId && S.items[log.itemId] && S.items[log.itemId].title !== text && (S.items[log.itemId].createdSectorId === sec.id || S.items[log.itemId].createdSector === sec.number)) S.items[log.itemId].title = text;
+    save(); after(); toast('Saved');
+  };
+}
+function deleteLine(sec, log, after) {
+  const i = sec.logs.indexOf(log); sec.logs.splice(i, 1); let removed = null;
+  if (log.itemId && S.items[log.itemId] && (S.items[log.itemId].createdSectorId === sec.id || S.items[log.itemId].createdSector === sec.number) && !S.sectors.some(s => s.logs.some(o => o.itemId === log.itemId))) { removed = S.items[log.itemId]; delete S.items[log.itemId]; }
+  save(); after(); toast('Deleted', () => { sec.logs.splice(i, 0, log); if (removed) S.items[removed.id] = removed; save(); });
+}
+
 /** Swipeable card: right = yes, left = no. */
 function swipeCard(card, onRight, onLeft) {
   let x0 = null, dx = 0, drag = false;
@@ -398,13 +452,13 @@ function vLibrary(cat = 'missed', station) {
       return { ...x, n: ev.filter(e => e.ev === 'MISS').length, last: ev.filter(e => e.ev === 'MISS').at(-1)?.sector };
     }).filter(x => x.n > 0 && (!q || x.item.title.toLowerCase().includes(q))).sort((a, b) => b.n - a.n || a.item.title.localeCompare(b.item.title));
     const sortBy = S._sort || 'phase';
-    const row = x => `<li><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div><div class="meta">${sortBy === 'misses' ? `<span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span>` : ''}<span class="miss-n">${x.n}✕${inst ? ' with ' + esc(inst) : ''}</span>${inst && x.h.misses !== x.n ? `<span>${x.h.misses}✕ overall</span>` : ''}${x.h.status === 'retired' ? '<span class="badge retired">off the list</span>' : ''}${strip(x.h)}</div></a></li>`;
+    const row = x => `<li data-item="${x.item.id}"><a href="#/item/${x.item.id}"><div class="t">${esc(x.item.title)}</div><div class="meta">${sortBy === 'misses' ? `<span>${esc(PHASE_LABEL[x.item.phase] || x.item.phase)}</span>` : ''}<span class="miss-n">${x.n}✕${inst ? ' with ' + esc(inst) : ''}</span>${inst && x.h.misses !== x.n ? `<span>${x.h.misses}✕ overall</span>` : ''}${x.h.status === 'retired' ? '<span class="badge retired">off the list</span>' : ''}${strip(x.h)}</div></a></li>`;
     count = all.length;
     rows = sortBy === 'phase'
       ? groupByPhase(all).map(([ph, xs]) => `<li class="grp"><h2>${PHASE_LABEL[ph]}</h2></li>${xs.map(row).join('')}`)
       : all.map(row);
   } else {
-    rows = libraryEntries(cat, cat === 'station' ? station : null).filter(e => secs.includes(e.sector)).filter(e => !q || e.text.toLowerCase().includes(q)).map(e => `<li><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${esc(e.sector.instructor || '')}</span><span>${fmtDate(e.sector.date)}</span></div></li>`);
+    rows = libraryEntries(cat, cat === 'station' ? station : null).filter(e => secs.includes(e.sector)).filter(e => !q || e.text.toLowerCase().includes(q)).map(e => `<li data-log="${e.log.id}" data-sec="${e.sector.id}"><div><div class="t is-note">${esc(e.text)}</div><div class="meta"><span>S${e.sector.number} · ${esc(dest(e.sector))}</span><span>${esc(e.sector.instructor || '')}</span><span>${fmtDate(e.sector.date)}</span></div></div></li>`);
   }
   const nSec = secs.length;
   view.innerHTML = h`
@@ -417,6 +471,22 @@ function vLibrary(cat = 'missed', station) {
     ${readBar(() => collectLines(view))}
     <p class="muted">${(() => { const n = cat === 'missed' ? count : rows.length; return n + (n === 1 ? ' entry' : ' entries'); })()}${inst ? ` · ${nSec} flight${nSec === 1 ? '' : 's'} with ${esc(inst)}` : ''}${cat === 'missed' ? ' · tap one for its history' : ''}</p>
     <ul class="list card">${rows.join('') || '<li class="empty">Nothing here.</li>'}</ul>`;
+  const redraw = () => { const y = window.scrollY; vLibrary(cat, station); window.scrollTo(0, y); };
+  view.querySelectorAll('li[data-log]').forEach(li => {
+    const sec = S.sectors.find(s => s.id === li.dataset.sec), log = sec?.logs.find(l => l.id === li.dataset.log); if (!log) return;
+    swipeActions(li, [
+      { label: 'Edit', cls: 'edit', fn: () => editLine(li, log, sec, redraw) },
+      { label: 'Delete', cls: 'del', fn: () => deleteLine(sec, log, redraw) },
+    ]);
+  });
+  view.querySelectorAll('li[data-item]').forEach(li => {
+    const it = S.items[li.dataset.item]; if (!it) return; const st = history(it).status;
+    swipeActions(li, [
+      { label: 'Edit', cls: 'edit', fn: () => { location.hash = '#/item/' + it.id; } },
+      { label: st === 'active' ? 'Graduate' : 'Pull back', cls: 'ok', fn: () => { if (st === 'active') { it.manualRetiredSeq = markSeq(); delete it.manualActiveSeq; } else { it.manualActiveSeq = markSeq(); delete it.manualRetiredSeq; } save(); redraw(); toast(st === 'active' ? 'Graduated' : 'Back on the list', () => { if (st === 'active') delete it.manualRetiredSeq; else delete it.manualActiveSeq; save(); }); } },
+      { label: 'Delete', cls: 'del', fn: () => { if (!confirm('Delete this item and unlink its lines?')) return; for (const s of S.sectors) { delete s.recall[it.id]; s.logs.forEach(l => { if (l.itemId === it.id) l.itemId = null; }); } delete S.items[it.id]; save(); redraw(); } },
+    ]);
+  });
   view.querySelectorAll('[data-inst]').forEach(b => b.onclick = () => { S._inst = b.dataset.inst; vLibrary(cat, station); });
   view.querySelectorAll('[data-status]').forEach(b => b.onclick = () => { S._status = b.dataset.status; vLibrary(cat, station); });
   view.querySelectorAll('[data-sort]').forEach(b => b.onclick = () => { S._sort = b.dataset.sort; vLibrary(cat, station); });
@@ -473,11 +543,8 @@ function vDebrief(id, stepStr) {
       <h2>${CATS.instructor}${sec.instructor ? ' · ' + esc(sec.instructor) : ''}</h2><ul class="list card db">${byCat('instructor').map(line).join('')}${input('instructor')}</ul>
       <div class="actions"><a class="btn big" href="#/debrief/${sec.id}/0">‹ Back</a><button class="btn primary big grow" id="finish">Finish ›</button></div>`;
     const redraw = () => { const y = window.scrollY; vDebrief(id, '1'); window.scrollTo(0, y); };
-    view.querySelectorAll('li.newlog').forEach(li => swipeRow(li, 'Delete', () => {
-      const i = sec.logs.findIndex(l => l.id === li.dataset.log); const [l] = sec.logs.splice(i, 1); let removed = null;
-      if (l.itemId && (S.items[l.itemId]?.createdSectorId === sec.id || S.items[l.itemId]?.createdSector === sec.number) && !S.sectors.some(s => s.logs.some(o => o !== l && o.itemId === l.itemId))) { removed = S.items[l.itemId]; delete S.items[l.itemId]; }
-      save(); redraw(); toast('Deleted', () => { sec.logs.splice(i, 0, l); if (removed) S.items[removed.id] = removed; save(); });
-    }));
+    view.querySelectorAll('li.newlog').forEach(li => { const log = sec.logs.find(l => l.id === li.dataset.log); if (!log) return;
+      swipeActions(li, [{ label: 'Edit', cls: 'edit', fn: () => editLine(li, log, sec, redraw) }, { label: 'Delete', cls: 'del', fn: () => deleteLine(sec, log, redraw) }]); });
     view.querySelectorAll('li.addline form').forEach(f => {
       const inp = f.querySelector('input'), sug = f.parentElement.querySelector('.sug'), cat = f.dataset.cat; let linked = null;
       if (f.phase) f.phase.onchange = () => { sec._ph = f.phase.value; };
